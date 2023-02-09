@@ -2,6 +2,7 @@ use crate::{eval::Value, parse::ast::Ident};
 
 pub(crate) struct Env {
     scopes: Vec<Storage>,
+    cached: Vec<Storage>,
 }
 
 type Storage = std::collections::HashMap<Ident, Value>;
@@ -16,6 +17,7 @@ impl Env {
 
         Self {
             scopes: vec![global],
+            cached: Default::default(),
         }
     }
 
@@ -31,11 +33,14 @@ impl Env {
     where
         F: FnOnce(&mut Env) -> T,
     {
-        self.scopes.push(Storage::default());
+        let new = self.cached.pop().unwrap_or_default();
+        self.scopes.push(new);
 
         let result = f(self);
 
-        self.scopes.pop().unwrap();
+        let mut old = self.scopes.pop().unwrap();
+        old.clear();
+        self.cached.push(old);
 
         result
     }
