@@ -18,7 +18,11 @@ fn run(file: &str) {
     let mut env = oris::Env::new();
 
     match oris::entry(&mut env, code) {
-        Ok(()) => {}
+        Ok(result) => {
+            if let Some(result) = result {
+                println!("{:?}", result);
+            }
+        }
         Err(err) => {
             eprintln!("error: {}", err);
             std::process::exit(1);
@@ -44,7 +48,11 @@ fn repl() {
         }
 
         match oris::entry(&mut env, line.into_bytes()) {
-            Ok(()) => {}
+            Ok(result) => {
+                if let Some(result) = result {
+                    println!("{:?}", result);
+                }
+            }
             Err(err) => {
                 eprintln!("error: {}", err);
             }
