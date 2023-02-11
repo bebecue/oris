@@ -1,10 +1,3 @@
-#[macro_use]
-mod macros;
-
-mod eval;
-mod lex;
-mod parse;
-
 fn main() {
     if let Some(file) = std::env::args().nth(1) {
         run(&file);
@@ -22,13 +15,10 @@ fn run(file: &str) {
         }
     };
 
-    let mut env = eval::Env::with_builtin();
+    let mut env = oris::Env::new();
 
-    match eval::entry(&mut env, code) {
-        Ok(eval::Value::Unit) => {}
-        Ok(other) => {
-            println!("{:?}", other);
-        }
+    match oris::entry(&mut env, code) {
+        Ok(()) => {}
         Err(err) => {
             eprintln!("error: {}", err);
             std::process::exit(1);
@@ -37,7 +27,7 @@ fn run(file: &str) {
 }
 
 fn repl() {
-    let mut env = eval::Env::with_builtin();
+    let mut env = oris::Env::new();
 
     let mut stdin = std::io::stdin().lock();
     loop {
@@ -53,10 +43,8 @@ fn repl() {
             break;
         }
 
-        match eval::entry(&mut env, line.into_bytes()) {
-            Ok(result) => {
-                println!("{:?}", result);
-            }
+        match oris::entry(&mut env, line.into_bytes()) {
+            Ok(()) => {}
             Err(err) => {
                 eprintln!("error: {}", err);
             }
