@@ -1,6 +1,7 @@
 use crate::{eval::Value, parse::ast::Ident};
 
 pub(crate) struct Env {
+    global: Storage,
     scopes: Vec<Storage>,
     cached: Vec<Storage>,
 }
@@ -16,17 +17,24 @@ impl Env {
         }
 
         Self {
-            scopes: vec![global],
+            global,
+            scopes: Default::default(),
             cached: Default::default(),
         }
     }
 
     pub(super) fn get(&self, ident: &Ident) -> Option<&Value> {
-        self.scopes.iter().rev().find_map(|scope| scope.get(ident))
+        self.scopes
+            .last()
+            .and_then(|scope| scope.get(ident))
+            .or_else(|| self.global.get(ident))
     }
 
     pub(super) fn set(&mut self, ident: Ident, value: Value) {
-        self.scopes.last_mut().unwrap().insert(ident, value);
+        self.scopes
+            .last_mut()
+            .unwrap_or(&mut self.global)
+            .insert(ident, value);
     }
 
     pub(super) fn enclosed<F, T>(&mut self, f: F) -> T

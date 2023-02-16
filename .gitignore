@@ -5,3 +5,5 @@
 !/src
 !/Cargo.toml
 !/README.md
+
+!/benches_oris

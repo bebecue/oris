@@ -8,22 +8,29 @@ use crate::{
 pub(crate) struct Closure {
     pub(crate) f: Rc<ast::Closure>,
     pub(crate) captured: Box<[(ast::Ident, Value)]>,
+    pub(crate) undefined: Vec<ast::Ident>,
+    pub(crate) recursive: Option<Ident>,
 }
 
 impl Closure {
     pub(crate) fn new(f: Rc<ast::Closure>, env: &crate::eval::Env) -> Self {
         let unbounded = analyze_unbounded(&f);
 
+        let mut undefined = Vec::new();
         let mut captured = Vec::with_capacity(unbounded.len());
         for ident in unbounded {
             if let Some(value) = env.get(ident) {
                 captured.push((ident.clone(), value.clone()));
+            } else {
+                undefined.push(ident.clone());
             }
         }
 
         Self {
             f,
             captured: captured.into_boxed_slice(),
+            undefined,
+            recursive: None,
         }
     }
 }

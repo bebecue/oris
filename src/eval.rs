@@ -52,6 +52,18 @@ fn eval_stmt(env: &mut Env, stmt: &ast::Stmt) -> Result<Eval<()>> {
     match stmt {
         ast::Stmt::Let(ident, value) => {
             let value = propagate!(eval_expr(env, value));
+
+            let value = match value {
+                Value::Closure(mut closure) => {
+                    if let Some(i) = closure.undefined.iter().position(|ident_| ident_ == ident) {
+                        let c = Rc::get_mut(&mut closure).unwrap();
+                        c.recursive = Some(c.undefined.remove(i));
+                    }
+                    Value::Closure(closure)
+                }
+                other => other,
+            };
+
             env.set(ident.clone(), value);
             Ok(()).map(Eval::Continue)
         }
@@ -157,6 +169,10 @@ fn eval_call(env: &mut Env, target: &ast::Expr, args: &[ast::Expr]) -> Result<Ev
                 })
             } else {
                 env.enclosed(|env| {
+                    if let Some(ref name) = closure.recursive {
+                        env.set(name.clone(), Value::Closure(Rc::clone(&closure)));
+                    }
+
                     for (ident, value) in closure.captured.iter() {
                         env.set(ident.clone(), value.clone());
                     }
