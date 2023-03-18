@@ -1,0 +1,11 @@
+let foo = fn() {
+    let addend = 1;
+
+    fn(x) {
+        x + addend
+    }
+};
+
+let add = foo();
+
+assert_eq(add(2), 3);
