@@ -3,6 +3,7 @@
 !/.gitignore
 
 !/src
+!/tests
 !/Cargo.toml
 !/README.md
 
