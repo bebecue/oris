@@ -4,19 +4,49 @@ macro_rules! t {
     ($code:literal, $result:literal) => {
         let mut env = Env::with_builtin();
 
-        assert_eq!(entry(&mut env, $code.into()), Ok(Value::Int($result)));
+        match entry(&mut env, $code.as_bytes()) {
+            Ok(Value::Int(result)) => {
+                assert_eq!(result, $result);
+            }
+            Ok(value) => {
+                panic!("expect int {}, found {:?}", $result, value);
+            }
+            Err(err) => {
+                panic!("eval failed: {:?}", err);
+            }
+        }
     };
 
     ($code:literal, [$($elem:literal),*]) => {
         let mut env = Env::with_builtin();
 
-        assert_eq!(entry(&mut env, $code.into()), Ok(Value::Seq(vec![$(Value::Int($elem)),*].into())));
+        match entry(&mut env, $code.as_bytes()) {
+            Ok(Value::Seq(result)) => {
+                let result = result.iter().map(|v| match v {
+                    Value::Int(v) => Ok(*v),
+                    _ => Err(v),
+                }).collect::<std::result::Result<Vec<_>,_>>();
+
+                match result {
+                    Ok(seq) => assert_eq!(seq, vec![$($elem),*]),
+                    Err(value) => {
+                        panic!("expect seq of int, found one is not int: {:?}", value);
+                    }
+                }
+            }
+            Ok(value) => {
+                panic!("expect seq of int, found {:?}", value);
+            }
+            Err(err) => {
+                panic!("eval failed: {:?}", err);
+            }
+        }
     };
 
     (error: $code:literal) => {
         let mut env = Env::with_builtin();
 
-        match entry(&mut env, $code.into()) {
+        match entry(&mut env, $code.as_bytes()) {
             result @ Ok(_) | result @ Err(Error::Parse(_)) => panic!("{:?}", result),
             _ => {}
         }
@@ -25,7 +55,7 @@ macro_rules! t {
     (unit: $code:literal) => {
         let mut env = Env::with_builtin();
 
-        match entry(&mut env, $code.into()) {
+        match entry(&mut env, $code.as_bytes()) {
             Ok(Value::Unit) => {},
             other => panic!("{:?}", other),
         }
@@ -34,7 +64,11 @@ macro_rules! t {
     (str: $code:literal, $result:literal) => {
         let mut env = Env::with_builtin();
 
-        assert_eq!(entry(&mut env, $code.into()), Ok(Value::Str($result.into())));
+        match entry(&mut env, $code.as_bytes()) {
+            Ok(Value::Str(s)) => assert_eq!(&*s, $result),
+            Ok(v) => panic!("expect str, found {:?}", v),
+            Err(err) => panic!("eval failed: {:?}", err),
+        }
     };
 }
 

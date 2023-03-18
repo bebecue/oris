@@ -1,17 +1,16 @@
 use crate::lex;
 
 #[derive(Debug)]
-#[cfg_attr(test, derive(PartialEq, Eq))]
 pub(crate) enum Error {
     Lex(lex::Error),
-    Miss(Box<Expected>),
+    Incomplete(Box<Expected>),
     Mismatch(Box<Mismatch>),
 }
 
 #[derive(Debug)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
 pub(crate) struct Mismatch {
-    pub(crate) left: lex::Token,
+    pub(crate) left: lex::token::Token,
     pub(crate) right: Expected,
 }
 
@@ -20,16 +19,17 @@ pub(crate) struct Mismatch {
 pub(crate) enum Expected {
     Expr,
     Ident,
-    Token(lex::Token),
+    Token(lex::token::Kind),
 }
 
 impl Error {
-    pub(crate) fn miss(expected: Expected) -> Self {
-        Self::Miss(Box::new(expected))
-    }
-
-    pub(crate) fn mismatch(left: lex::Token, right: Expected) -> Self {
-        Self::Mismatch(Box::new(Mismatch { left, right }))
+    // FIXME: remove `code` argument?
+    pub(crate) fn pos(&self, code: &[u8]) -> usize {
+        match self {
+            Self::Lex(error) => error.pos,
+            Self::Incomplete(_) => code.len(),
+            Self::Mismatch(mismatch) => mismatch.left.pos,
+        }
     }
 }
 
@@ -43,7 +43,7 @@ impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Error::Lex(error) => error.fmt(f),
-            Error::Miss(expected) => {
+            Error::Incomplete(expected) => {
                 write!(f, "miss {}", expected)
             }
             Error::Mismatch(error) => {

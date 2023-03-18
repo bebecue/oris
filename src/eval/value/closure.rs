@@ -17,9 +17,9 @@ impl Closure {
         let unbounded = analyze_unbounded(&f);
 
         let mut undefined = Vec::new();
-        let mut captured = Vec::with_capacity(unbounded.len());
+        let mut captured = Vec::<(Ident, Value)>::with_capacity(unbounded.len());
         for ident in unbounded {
-            if let Some(value) = env.get(ident) {
+            if let Some(value) = env.get(ident.sym()) {
                 captured.push((ident.clone(), value.clone()));
             } else {
                 undefined.push(ident.clone());
@@ -35,9 +35,9 @@ impl Closure {
     }
 }
 
-fn analyze_unbounded(f: &ast::Closure) -> HashSet<&Ident> {
+fn analyze_unbounded(f: &ast::Closure) -> Vec<&Ident> {
     let mut env = AnalyzeEnv {
-        scopes: vec![f.parameters.iter().collect()],
+        scopes: vec![f.parameters.iter().map(|ident| ident.sym()).collect()],
         unbounded: Default::default(),
     };
 
@@ -47,8 +47,8 @@ fn analyze_unbounded(f: &ast::Closure) -> HashSet<&Ident> {
 }
 
 struct AnalyzeEnv<'a> {
-    scopes: Vec<HashSet<&'a Ident>>,
-    unbounded: HashSet<&'a Ident>,
+    scopes: Vec<HashSet<&'a str>>,
+    unbounded: Vec<&'a Ident>,
 }
 
 impl<'a> AnalyzeEnv<'a> {
@@ -64,18 +64,18 @@ impl<'a> AnalyzeEnv<'a> {
     }
 
     fn create_ident(&mut self, ident: &'a Ident) {
-        self.scopes.last_mut().unwrap().insert(ident);
+        self.scopes.last_mut().unwrap().insert(ident.sym());
     }
 
     fn access_ident(&mut self, ident: &'a Ident) {
         if !self.has_ident(ident) {
-            self.unbounded.insert(ident);
+            self.unbounded.push(ident);
         }
     }
 
     fn has_ident(&self, ident: &Ident) -> bool {
         for scope in self.scopes.iter().rev() {
-            if scope.contains(ident) {
+            if scope.contains(ident.sym()) {
                 return true;
             }
         }
@@ -98,14 +98,14 @@ impl<'a> AnalyzeEnv<'a> {
 
     fn walk_stmt(&mut self, stmt: &'a ast::Stmt) {
         match stmt {
-            ast::Stmt::Return(expr) => {
-                if let Some(ref expr) = expr {
+            ast::Stmt::Return(return_) => {
+                if let Some(ref expr) = return_.value {
                     self.walk_expr(expr)
                 }
             }
-            ast::Stmt::Let(ident, value) => {
-                self.walk_expr(value);
-                self.create_ident(ident);
+            ast::Stmt::Let(let_) => {
+                self.walk_expr(&let_.value);
+                self.create_ident(&let_.ident);
             }
         }
     }
@@ -114,15 +114,15 @@ impl<'a> AnalyzeEnv<'a> {
         match expr {
             ast::Expr::Int(_) | ast::Expr::Bool(_) | ast::Expr::Str(_) | ast::Expr::Closure(_) => {}
             ast::Expr::Seq(seq) => {
-                for expr in seq.iter() {
+                for expr in seq.elements.iter() {
                     self.walk_expr(expr);
                 }
             }
             ast::Expr::Ident(ident) => self.access_ident(ident),
-            ast::Expr::Unary(_, expr) => self.walk_expr(expr),
-            ast::Expr::Binary(left, _, right) => {
-                self.walk_expr(left);
-                self.walk_expr(right);
+            ast::Expr::Unary(expr) => self.walk_expr(&expr.value),
+            ast::Expr::Binary(expr) => {
+                self.walk_expr(&expr.left);
+                self.walk_expr(&expr.right);
             }
             ast::Expr::If(expr) => {
                 self.walk_expr(&expr.condition);
@@ -131,22 +131,22 @@ impl<'a> AnalyzeEnv<'a> {
                     self.walk_block(alternative);
                 }
             }
-            ast::Expr::Call(target, args) => {
-                self.walk_expr(target);
+            ast::Expr::Call(call) => {
+                self.walk_expr(&call.target);
 
-                for arg in args.iter() {
+                for arg in call.args.iter() {
                     self.walk_expr(arg);
                 }
             }
-            ast::Expr::Map(entries) => {
-                for (k, v) in entries.iter() {
+            ast::Expr::Map(map) => {
+                for (k, v) in map.entries.iter() {
                     self.walk_expr(k);
                     self.walk_expr(v);
                 }
             }
-            ast::Expr::Index(target, key) => {
-                self.walk_expr(target);
-                self.walk_expr(key);
+            ast::Expr::Index(index) => {
+                self.walk_expr(&index.base);
+                self.walk_expr(&index.subscript);
             }
         }
     }
@@ -169,14 +169,14 @@ fn(y) {
     let lexer = crate::lex::Lexer::new(input.as_bytes().into());
     let mut parser = crate::parse::Parser::new(lexer);
     let f = parser.next().unwrap().unwrap();
-    assert_eq!(parser.next(), None);
+    assert!(parser.next().is_none());
 
     match f {
         ast::Node::Expr(ast::Expr::Closure(closure)) => {
-            assert_eq!(
-                analyze_unbounded(&closure),
-                HashSet::from([&Ident::new("x".into()), &Ident::new("z".into())])
-            );
+            let unbounded = analyze_unbounded(&closure);
+            assert_eq!(unbounded.len(), 2);
+            assert_eq!(unbounded[0].sym(), "z");
+            assert_eq!(unbounded[1].sym(), "x");
         }
         _ => unreachable!(),
     }

@@ -1,5 +1,11 @@
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) enum Token {
+pub(crate) struct Token {
+    pub(crate) pos: usize,
+    pub(crate) kind: Kind,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum Kind {
     /// `let`
     Let,
 

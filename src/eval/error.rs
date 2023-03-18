@@ -1,47 +1,76 @@
 use crate::{eval::value::Value, parse::ast};
 
 #[derive(Debug)]
-#[cfg_attr(test, derive(PartialEq, Eq))]
 pub(crate) enum Error {
-    AssertEq(Value, Value),
+    AssertEq {
+        pos: usize,
+        left: Value,
+        right: Value,
+    },
     Parse(crate::parse::Error),
     Undefined(ast::Ident),
     Index {
-        container: Value,
-        key: Value,
+        pos: usize,
+        base: Value,
+        subscript: Value,
     },
     Unary {
+        pos: usize,
         op: ast::UnaryOp,
         operand: Value,
     },
     Binary {
+        pos: usize,
         left: Value,
         op: ast::BinaryOp,
         right: Value,
     },
-    Call(Value),
+    Call {
+        pos: usize,
+        target: Value,
+        args: Box<[Value]>,
+    },
     ArgCount {
+        pos: usize,
         supplied: usize,
         expected: usize,
     },
     ArgType {
+        pos: usize,
         supplied: Value,
         expected: &'static str,
     },
-    ArgValue(&'static str),
+    ArgValue {
+        pos: usize,
+        message: &'static str,
+    },
 }
 
 impl Error {
-    pub(super) fn unary(op: ast::UnaryOp, operand: Value) -> Self {
-        Self::Unary { op, operand }
-    }
+    pub(crate) fn pos_to_line_column(&self, code: &[u8]) -> (usize, usize) {
+        let pos = match self {
+            Self::AssertEq { pos, .. } => *pos,
+            Self::Parse(error) => error.pos(code),
+            Self::Undefined(ident) => ident.pos(),
+            Self::Index { pos, .. } => *pos,
+            Self::Unary { pos, .. } => *pos,
+            Self::Binary { pos, .. } => *pos,
+            Self::Call { pos, .. } => *pos,
+            Self::ArgCount { pos, .. } => *pos,
+            Self::ArgType { pos, .. } => *pos,
+            Self::ArgValue { pos, .. } => *pos,
+        };
 
-    pub(super) fn binary(left: Value, op: ast::BinaryOp, right: Value) -> Self {
-        Self::Binary { left, op, right }
-    }
+        assert!(pos <= code.len());
 
-    pub(super) fn index(container: Value, key: Value) -> Self {
-        Self::Index { container, key }
+        match code[..pos].iter().rposition(|b| *b == b'\n') {
+            Some(i) => {
+                let (lines, column_text) = code[..pos].split_at(i + 1);
+                let line_number = lines.iter().filter(|b| **b == b'\n').count();
+                (line_number, column_text.len()) // TODO: support UTF-8?
+            }
+            None => (0, code[..pos].len()), // TODO: support UTF-8?
+        }
     }
 }
 
@@ -54,7 +83,11 @@ impl From<crate::parse::Error> for Error {
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self {
-            Self::AssertEq(left, right) => {
+            Self::AssertEq {
+                pos: _,
+                left,
+                right,
+            } => {
                 f.write_str("assert_eq failed\n")?;
                 write!(f, " left: {:?}\n", left)?;
                 write!(f, "right: {:?}", right)?;
@@ -63,29 +96,50 @@ impl std::fmt::Display for Error {
             Self::Undefined(ident) => {
                 write!(f, "undefined identifier: {}", ident)
             }
-            Self::Index { container, key } => {
-                write!(f, "index {:?} with {:?}", container, key)
+            Self::Index {
+                pos: _,
+                base,
+                subscript,
+            } => {
+                write!(f, "index {:?} with {:?}", base, subscript)
             }
-            Self::Unary { op, operand } => {
+            Self::Unary {
+                pos: _,
+                op,
+                operand,
+            } => {
                 write!(f, "invalid unary operator {} for {:?}", op, operand)
             }
-            Self::Binary { left, op, right } => {
+            Self::Binary {
+                pos: _,
+                left,
+                op,
+                right,
+            } => {
                 write!(
                     f,
                     "invalid binary operator {} between {:?} and {:?}",
                     op, left, right
                 )
             }
-            Self::Call(kind) => {
-                write!(f, "{:?} is not callable", kind)
+            Self::Call { target, .. } => {
+                write!(f, "{:?} is not callable", target)
             }
-            Self::ArgCount { supplied, expected } => {
+            Self::ArgCount {
+                pos: _,
+                supplied,
+                expected,
+            } => {
                 write!(f, "accept arg x {}, but got {}", expected, supplied)
             }
-            Self::ArgType { supplied, expected } => {
+            Self::ArgType {
+                pos: _,
+                supplied,
+                expected,
+            } => {
                 write!(f, "accept arg of type {}, but got {:?}", expected, supplied)
             }
-            Self::ArgValue(message) => f.write_str(message),
+            Self::ArgValue { pos: _, message } => f.write_str(message),
             Self::Parse(error) => error.fmt(f),
         }
     }

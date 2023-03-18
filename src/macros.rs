@@ -9,11 +9,12 @@ macro_rules! propagate {
 }
 
 macro_rules! args {
-    ($args:ident = $($binding:ident),*) => {
+    ($args:ident @ $pos:ident = $($binding:ident),*) => {
         let [$($binding),*] = match <[$crate::eval::value::Value; args!(@count $($binding),*)]>::try_from($args) {
             Ok(xs) => { xs }
             Err(err) => {
                   return Err($crate::eval::Error::ArgCount {
+                    pos: $pos,
                     supplied: err.len(),
                     expected: args!(@count $($binding),*),
                 });

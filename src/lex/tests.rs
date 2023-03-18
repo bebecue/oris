@@ -1,12 +1,16 @@
-use super::*;
+use super::{error, token::Kind, Lexer};
 
 macro_rules! t {
     ($input:literal, $tokens:expr) => {
         let mut lexer = Lexer::new($input.as_bytes().into());
         for token in $tokens {
-            assert_eq!(lexer.next(), Some(Ok(token)));
+            match lexer.next() {
+                Some(Ok(tk)) => assert_eq!(tk.kind, token),
+                Some(Err(err)) => panic!("expect token {:?}, found error: {:?}", token, err),
+                None => panic!("expect token {:?}, found EOF", token),
+            }
         }
-        assert_eq!(lexer.next(), None);
+        assert!(lexer.next().is_none());
     };
 }
 
@@ -39,39 +43,39 @@ foo
 <= >=
 "#,
         vec![
-            Token::Let,
-            Token::True,
-            Token::False,
-            Token::Fn,
-            Token::Return,
-            Token::If,
-            Token::Else,
-            Token::Ident("foo".into()),
-            Token::Int(0),
-            Token::Int(1),
-            Token::Int(42),
-            Token::Str("bar".into()),
-            Token::Comma,
-            Token::Colon,
-            Token::Semicolon,
-            Token::LeftParen,
-            Token::RightParen,
-            Token::LeftBracket,
-            Token::RightBracket,
-            Token::LeftBrace,
-            Token::RightBrace,
-            Token::Plus,
-            Token::Hyphen,
-            Token::Asterisk,
-            Token::Slash,
-            Token::Assign,
-            Token::Bang,
-            Token::Eq,
-            Token::Ne,
-            Token::Lt,
-            Token::Gt,
-            Token::Le,
-            Token::Ge,
+            Kind::Let,
+            Kind::True,
+            Kind::False,
+            Kind::Fn,
+            Kind::Return,
+            Kind::If,
+            Kind::Else,
+            Kind::Ident("foo".into()),
+            Kind::Int(0),
+            Kind::Int(1),
+            Kind::Int(42),
+            Kind::Str("bar".into()),
+            Kind::Comma,
+            Kind::Colon,
+            Kind::Semicolon,
+            Kind::LeftParen,
+            Kind::RightParen,
+            Kind::LeftBracket,
+            Kind::RightBracket,
+            Kind::LeftBrace,
+            Kind::RightBrace,
+            Kind::Plus,
+            Kind::Hyphen,
+            Kind::Asterisk,
+            Kind::Slash,
+            Kind::Assign,
+            Kind::Bang,
+            Kind::Eq,
+            Kind::Ne,
+            Kind::Lt,
+            Kind::Gt,
+            Kind::Le,
+            Kind::Ge,
         ]
     );
 }
@@ -81,125 +85,125 @@ fn stmts() {
     t!(
         "let answer = 42;",
         vec![
-            Token::Let,
-            Token::Ident("answer".into()),
-            Token::Assign,
-            Token::Int(42),
-            Token::Semicolon,
+            Kind::Let,
+            Kind::Ident("answer".into()),
+            Kind::Assign,
+            Kind::Int(42),
+            Kind::Semicolon,
         ]
     );
 
     t!(
         "let is = true;",
         vec![
-            Token::Let,
-            Token::Ident("is".into()),
-            Token::Assign,
-            Token::True,
-            Token::Semicolon
+            Kind::Let,
+            Kind::Ident("is".into()),
+            Kind::Assign,
+            Kind::True,
+            Kind::Semicolon
         ]
     );
 
     t!(
         "let not = false;",
         vec![
-            Token::Let,
-            Token::Ident("not".into()),
-            Token::Assign,
-            Token::False,
-            Token::Semicolon
+            Kind::Let,
+            Kind::Ident("not".into()),
+            Kind::Assign,
+            Kind::False,
+            Kind::Semicolon
         ]
     );
 
     t!(
         "let arith = 1 + 4 * 3 / 2;",
         vec![
-            Token::Let,
-            Token::Ident("arith".into()),
-            Token::Assign,
-            Token::Int(1),
-            Token::Plus,
-            Token::Int(4),
-            Token::Asterisk,
-            Token::Int(3),
-            Token::Slash,
-            Token::Int(2),
-            Token::Semicolon,
+            Kind::Let,
+            Kind::Ident("arith".into()),
+            Kind::Assign,
+            Kind::Int(1),
+            Kind::Plus,
+            Kind::Int(4),
+            Kind::Asterisk,
+            Kind::Int(3),
+            Kind::Slash,
+            Kind::Int(2),
+            Kind::Semicolon,
         ]
     );
 
     t!(
         "let min = fn(x, y) { if x < y { x } else { y } };",
         vec![
-            Token::Let,
-            Token::Ident("min".into()),
-            Token::Assign,
-            Token::Fn,
-            Token::LeftParen,
-            Token::Ident("x".into()),
-            Token::Comma,
-            Token::Ident("y".into()),
-            Token::RightParen,
-            Token::LeftBrace,
-            Token::If,
-            Token::Ident("x".into()),
-            Token::Lt,
-            Token::Ident("y".into()),
-            Token::LeftBrace,
-            Token::Ident("x".into()),
-            Token::RightBrace,
-            Token::Else,
-            Token::LeftBrace,
-            Token::Ident("y".into()),
-            Token::RightBrace,
-            Token::RightBrace,
-            Token::Semicolon,
+            Kind::Let,
+            Kind::Ident("min".into()),
+            Kind::Assign,
+            Kind::Fn,
+            Kind::LeftParen,
+            Kind::Ident("x".into()),
+            Kind::Comma,
+            Kind::Ident("y".into()),
+            Kind::RightParen,
+            Kind::LeftBrace,
+            Kind::If,
+            Kind::Ident("x".into()),
+            Kind::Lt,
+            Kind::Ident("y".into()),
+            Kind::LeftBrace,
+            Kind::Ident("x".into()),
+            Kind::RightBrace,
+            Kind::Else,
+            Kind::LeftBrace,
+            Kind::Ident("y".into()),
+            Kind::RightBrace,
+            Kind::RightBrace,
+            Kind::Semicolon,
         ]
     );
 
     t!(
         r#"let seq = [true, "==", !false];"#,
         vec![
-            Token::Let,
-            Token::Ident("seq".into()),
-            Token::Assign,
-            Token::LeftBracket,
-            Token::True,
-            Token::Comma,
-            Token::Str("==".into()),
-            Token::Comma,
-            Token::Bang,
-            Token::False,
-            Token::RightBracket,
-            Token::Semicolon,
+            Kind::Let,
+            Kind::Ident("seq".into()),
+            Kind::Assign,
+            Kind::LeftBracket,
+            Kind::True,
+            Kind::Comma,
+            Kind::Str("==".into()),
+            Kind::Comma,
+            Kind::Bang,
+            Kind::False,
+            Kind::RightBracket,
+            Kind::Semicolon,
         ]
     );
 
     t!(
         r#"let map = {"not true": false, 2: "two", false: 4, "seq": []};"#,
         vec![
-            Token::Let,
-            Token::Ident("map".into()),
-            Token::Assign,
-            Token::LeftBrace,
-            Token::Str("not true".into()),
-            Token::Colon,
-            Token::False,
-            Token::Comma,
-            Token::Int(2),
-            Token::Colon,
-            Token::Str("two".into()),
-            Token::Comma,
-            Token::False,
-            Token::Colon,
-            Token::Int(4),
-            Token::Comma,
-            Token::Str("seq".into()),
-            Token::Colon,
-            Token::LeftBracket,
-            Token::RightBracket,
-            Token::RightBrace,
-            Token::Semicolon,
+            Kind::Let,
+            Kind::Ident("map".into()),
+            Kind::Assign,
+            Kind::LeftBrace,
+            Kind::Str("not true".into()),
+            Kind::Colon,
+            Kind::False,
+            Kind::Comma,
+            Kind::Int(2),
+            Kind::Colon,
+            Kind::Str("two".into()),
+            Kind::Comma,
+            Kind::False,
+            Kind::Colon,
+            Kind::Int(4),
+            Kind::Comma,
+            Kind::Str("seq".into()),
+            Kind::Colon,
+            Kind::LeftBracket,
+            Kind::RightBracket,
+            Kind::RightBrace,
+            Kind::Semicolon,
         ]
     );
 }
@@ -207,15 +211,15 @@ fn stmts() {
 macro_rules! t_err {
     ($input:literal, $error:expr) => {
         let mut lexer = Lexer::new($input.as_bytes().into());
-        assert_eq!(lexer.next(), Some(Err($error)));
+        assert_eq!(lexer.next().unwrap().unwrap_err().kind, $error);
     };
 }
 
 #[test]
 fn errors() {
-    t_err!("\"abc", Error::Quote);
-    t_err!("123456789123456789", Error::Overflow);
-    t_err!("12g", Error::BadDigit(b'g'));
-    t_err!("0x", Error::BadDigit(b'x'));
-    t_err!("$", Error::Unexpected(b'$'));
+    t_err!("\"abc", error::Kind::Quote);
+    t_err!("123456789123456789", error::Kind::Overflow);
+    t_err!("12g", error::Kind::BadDigit(b'g'));
+    t_err!("0x", error::Kind::BadDigit(b'x'));
+    t_err!("$", error::Kind::Unexpected(b'$'));
 }

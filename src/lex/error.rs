@@ -1,6 +1,12 @@
 #[derive(Debug)]
+pub(crate) struct Error {
+    pub(crate) pos: usize,
+    pub(crate) kind: Kind,
+}
+
+#[derive(Debug)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
-pub(crate) enum Error {
+pub(crate) enum Kind {
     /// miss the right `"` in string
     Quote,
 
@@ -14,11 +20,11 @@ pub(crate) enum Error {
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Quote => f.write_str("missing right quote for string literal"),
-            Self::Overflow => f.write_str("integer literal is too large"),
-            Self::BadDigit(d) => write!(f, "bad digit `{}` in integer literal", char::from(*d)),
-            Self::Unexpected(b) => write!(f, "unexpected byte ({}){:#04x}", char::from(*b), b),
+        match self.kind {
+            Kind::Quote => f.write_str("missing right quote for string literal"),
+            Kind::Overflow => f.write_str("integer literal is too large"),
+            Kind::BadDigit(d) => write!(f, "bad digit `{}` in integer literal", char::from(d)),
+            Kind::Unexpected(b) => write!(f, "unexpected byte ({}){:#04x}", char::from(b), b),
         }
     }
 }

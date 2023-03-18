@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use crate::eval::{self, Value};
 
-pub(crate) type Builtin = fn(Vec<Value>) -> eval::Result<Value>;
+pub(crate) type Builtin = fn(usize, Vec<Value>) -> eval::Result<Value>;
 
 pub(crate) fn all_() -> [(&'static str, Builtin); 7] {
     [
@@ -18,14 +18,15 @@ pub(crate) fn all_() -> [(&'static str, Builtin); 7] {
 
 // fn(str) -> int
 // fn(seq) -> int
-fn len(args: Vec<Value>) -> eval::Result<Value> {
-    args!(args = value);
+fn len(pos: usize, args: Vec<Value>) -> eval::Result<Value> {
+    args!(args @ pos = value);
 
     match value {
         Value::Str(s) => Ok(Value::Int(s.len().try_into().expect("len as i32"))),
         Value::Seq(seq) => Ok(Value::Int(seq.len().try_into().expect("len as i32"))),
         Value::Map(map) => Ok(Value::Int(map.len().try_into().expect("len as i32"))),
         _ => Err(eval::Error::ArgType {
+            pos,
             supplied: value,
             expected: "seq | str | map",
         }),
@@ -33,15 +34,19 @@ fn len(args: Vec<Value>) -> eval::Result<Value> {
 }
 
 // fn([T]) -> T
-fn head(args: Vec<Value>) -> eval::Result<Value> {
-    args!(args = value);
+fn head(pos: usize, args: Vec<Value>) -> eval::Result<Value> {
+    args!(args @ pos = value);
 
     match value {
         Value::Seq(seq) => match seq.first() {
             Some(x) => Ok(x.clone()),
-            None => Err(eval::Error::ArgValue("call head() with an empty seq")),
+            None => Err(eval::Error::ArgValue {
+                pos,
+                message: "call head() with an empty seq",
+            }),
         },
         _ => Err(eval::Error::ArgType {
+            pos,
             supplied: value,
             expected: "seq",
         }),
@@ -49,16 +54,20 @@ fn head(args: Vec<Value>) -> eval::Result<Value> {
 }
 
 // fn([T]) -> [T]
-fn tail(args: Vec<Value>) -> eval::Result<Value> {
-    args!(args = value);
+fn tail(pos: usize, args: Vec<Value>) -> eval::Result<Value> {
+    args!(args @ pos = value);
 
     match value {
         Value::Seq(seq) => match seq.split_first() {
             Some((_, tail)) => Ok(tail.to_vec()).map(Rc::from).map(Value::Seq),
-            None => Err(eval::Error::ArgValue("call tail() with an empty seq")),
+            None => Err(eval::Error::ArgValue {
+                pos,
+                message: "call tail() with an empty seq",
+            }),
         },
 
         _ => Err(eval::Error::ArgType {
+            pos,
             supplied: value,
             expected: "Seq",
         }),
@@ -66,9 +75,10 @@ fn tail(args: Vec<Value>) -> eval::Result<Value> {
 }
 
 // fn([T], T...) -> [T]
-fn append(args: Vec<Value>) -> eval::Result<Value> {
+fn append(pos: usize, args: Vec<Value>) -> eval::Result<Value> {
     if args.len() < 2 {
         return Err(eval::Error::ArgCount {
+            pos,
             supplied: args.len(),
             expected: 2, // TODO: 2 or more
         });
@@ -86,6 +96,7 @@ fn append(args: Vec<Value>) -> eval::Result<Value> {
             Ok(Value::Seq(Rc::from(new_seq)))
         }
         other => Err(eval::Error::ArgType {
+            pos,
             supplied: other.clone(),
             expected: "append(seq, T...)",
         }),
@@ -93,7 +104,7 @@ fn append(args: Vec<Value>) -> eval::Result<Value> {
 }
 
 // fn(T...)
-fn print(args: Vec<Value>) -> eval::Result<Value> {
+fn print(_pos: usize, args: Vec<Value>) -> eval::Result<Value> {
     if args.is_empty() {
         println!()
     }
@@ -106,19 +117,19 @@ fn print(args: Vec<Value>) -> eval::Result<Value> {
 }
 
 // fn(T, T)
-fn assert_eq(args: Vec<Value>) -> eval::Result<Value> {
-    args!(args = left, right);
+fn assert_eq(pos: usize, args: Vec<Value>) -> eval::Result<Value> {
+    args!(args @ pos = left, right);
 
     if left == right {
         Ok(Value::Unit)
     } else {
-        Err(eval::Error::AssertEq(left, right))
+        Err(eval::Error::AssertEq { pos, left, right })
     }
 }
 
 // fn(T) -> str
-fn type_(args: Vec<Value>) -> eval::Result<Value> {
-    args!(args = arg);
+fn type_(pos: usize, args: Vec<Value>) -> eval::Result<Value> {
+    args!(args @ pos = arg);
 
     let name = match arg {
         Value::Unit => "unit",

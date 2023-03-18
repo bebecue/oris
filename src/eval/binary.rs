@@ -5,14 +5,24 @@ use crate::{
     parse::ast,
 };
 
-pub(super) fn eval(left: Value, op: ast::BinaryOp, right: Value) -> eval::Result<Value> {
+pub(super) fn eval(
+    pos: usize,
+    left: Value,
+    op: ast::BinaryOp,
+    right: Value,
+) -> eval::Result<Value> {
     match (left, right) {
         (Value::Int(left), Value::Int(right)) => Ok(int_(left, op, right)),
-        (Value::Bool(left), Value::Bool(right)) => bool_(left, op, right),
-        (Value::Str(left), Value::Str(right)) => str_(left, op, right),
-        (Value::Seq(left), Value::Seq(right)) => seq_(left, op, right),
-        (Value::Map(left), Value::Map(right)) => map_(left, op, right),
-        (left, right) => Err(eval::Error::binary(left, op, right)),
+        (Value::Bool(left), Value::Bool(right)) => bool_(pos, left, op, right),
+        (Value::Str(left), Value::Str(right)) => str_(pos, left, op, right),
+        (Value::Seq(left), Value::Seq(right)) => seq_(pos, left, op, right),
+        (Value::Map(left), Value::Map(right)) => map_(pos, left, op, right),
+        (left, right) => Err(eval::Error::Binary {
+            pos,
+            left,
+            op,
+            right,
+        }),
     }
 }
 
@@ -31,19 +41,20 @@ fn int_(left: i32, op: ast::BinaryOp, right: i32) -> Value {
     }
 }
 
-fn bool_(left: bool, op: ast::BinaryOp, right: bool) -> eval::Result<Value> {
+fn bool_(pos: usize, left: bool, op: ast::BinaryOp, right: bool) -> eval::Result<Value> {
     match op {
         ast::BinaryOp::Eq => Ok(Value::Bool(left == right)),
         ast::BinaryOp::Ne => Ok(Value::Bool(left != right)),
-        _ => Err(eval::Error::binary(
-            Value::Bool(left),
+        _ => Err(eval::Error::Binary {
+            pos,
+            left: Value::Bool(left),
             op,
-            Value::Bool(right),
-        )),
+            right: Value::Bool(right),
+        }),
     }
 }
 
-fn str_(left: Rc<str>, op: ast::BinaryOp, right: Rc<str>) -> eval::Result<Value> {
+fn str_(pos: usize, left: Rc<str>, op: ast::BinaryOp, right: Rc<str>) -> eval::Result<Value> {
     match op {
         ast::BinaryOp::Add => {
             let mut new_str = String::with_capacity(left.len() + right.len());
@@ -53,11 +64,21 @@ fn str_(left: Rc<str>, op: ast::BinaryOp, right: Rc<str>) -> eval::Result<Value>
         }
         ast::BinaryOp::Eq => Ok(Value::Bool(left == right)),
         ast::BinaryOp::Ne => Ok(Value::Bool(left != right)),
-        _ => Err(eval::Error::binary(Value::Str(left), op, Value::Str(right))),
+        _ => Err(eval::Error::Binary {
+            pos,
+            left: Value::Str(left),
+            op,
+            right: Value::Str(right),
+        }),
     }
 }
 
-fn seq_(left: Rc<[Value]>, op: ast::BinaryOp, right: Rc<[Value]>) -> eval::Result<Value> {
+fn seq_(
+    pos: usize,
+    left: Rc<[Value]>,
+    op: ast::BinaryOp,
+    right: Rc<[Value]>,
+) -> eval::Result<Value> {
     match op {
         ast::BinaryOp::Add => {
             let mut new_seq = Vec::with_capacity(left.len() + right.len());
@@ -67,11 +88,17 @@ fn seq_(left: Rc<[Value]>, op: ast::BinaryOp, right: Rc<[Value]>) -> eval::Resul
         }
         ast::BinaryOp::Eq => Ok(Value::Bool(left == right)),
         ast::BinaryOp::Ne => Ok(Value::Bool(left != right)),
-        _ => Err(eval::Error::binary(Value::Seq(left), op, Value::Seq(right))),
+        _ => Err(eval::Error::Binary {
+            pos,
+            left: Value::Seq(left),
+            op,
+            right: Value::Seq(right),
+        }),
     }
 }
 
 fn map_(
+    pos: usize,
     left: Rc<std::collections::HashMap<super::value::Key, Value>>,
     op: ast::BinaryOp,
     right: Rc<std::collections::HashMap<super::value::Key, Value>>,
@@ -79,6 +106,11 @@ fn map_(
     match op {
         ast::BinaryOp::Eq => Ok(Value::Bool(left == right)),
         ast::BinaryOp::Ne => Ok(Value::Bool(left != right)),
-        _ => Err(eval::Error::binary(Value::Map(left), op, Value::Map(right))),
+        _ => Err(eval::Error::Binary {
+            pos,
+            left: Value::Map(left),
+            op,
+            right: Value::Map(right),
+        }),
     }
 }

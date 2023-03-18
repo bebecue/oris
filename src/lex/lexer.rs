@@ -1,102 +1,114 @@
-use crate::lex::{self, Token};
+use crate::lex::{
+    self,
+    token::{Kind, Token},
+};
 
-pub(crate) struct Lexer {
-    input: Box<[u8]>,
+pub(crate) struct Lexer<'a> {
+    input: &'a [u8],
     cursor: usize,
 }
 
-impl Lexer {
-    pub(crate) fn new(input: Box<[u8]>) -> Self {
+impl<'a> Lexer<'a> {
+    pub(crate) fn new(input: &'a [u8]) -> Self {
         Self { input, cursor: 0 }
     }
 }
 
-impl Iterator for Lexer {
+impl Iterator for Lexer<'_> {
     type Item = lex::Result<Token>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.skip_writespaces();
+        loop {
+            self.skip_writespaces();
 
-        match self.read_byte()? {
-            b',' => Some(Ok(Token::Comma)),
-            b':' => Some(Ok(Token::Colon)),
-            b';' => Some(Ok(Token::Semicolon)),
-            b'(' => Some(Ok(Token::LeftParen)),
-            b')' => Some(Ok(Token::RightParen)),
-            b'[' => Some(Ok(Token::LeftBracket)),
-            b']' => Some(Ok(Token::RightBracket)),
-            b'{' => Some(Ok(Token::LeftBrace)),
-            b'}' => Some(Ok(Token::RightBrace)),
-            b'+' => Some(Ok(Token::Plus)),
-            b'-' => Some(Ok(Token::Hyphen)),
-            b'*' => Some(Ok(Token::Asterisk)),
-            b'/' => Some(Ok(Token::Slash)),
-            b'"' => Some(self.read_string().map(Token::Str)),
-            b'0'..=b'9' => {
-                self.unwind();
-                Some(self.read_int().map(Token::Int))
-            }
-            b'=' => match self.read_byte() {
-                Some(b'=') => Some(Ok(Token::Eq)),
-                Some(_) => {
+            let pos = self.cursor;
+
+            let kind = match self.read_byte()? {
+                b',' => Ok(Kind::Comma),
+                b':' => Ok(Kind::Colon),
+                b';' => Ok(Kind::Semicolon),
+                b'(' => Ok(Kind::LeftParen),
+                b')' => Ok(Kind::RightParen),
+                b'[' => Ok(Kind::LeftBracket),
+                b']' => Ok(Kind::RightBracket),
+                b'{' => Ok(Kind::LeftBrace),
+                b'}' => Ok(Kind::RightBrace),
+                b'+' => Ok(Kind::Plus),
+                b'-' => Ok(Kind::Hyphen),
+                b'*' => Ok(Kind::Asterisk),
+                b'/' => Ok(Kind::Slash),
+                b'"' => self.read_string().map(Kind::Str),
+                b'0'..=b'9' => {
                     self.unwind();
-                    Some(Ok(Token::Assign))
+                    self.read_int().map(Kind::Int)
                 }
-                None => Some(Ok(Token::Assign)),
-            },
-            b'!' => match self.read_byte() {
-                Some(b'=') => Some(Ok(Token::Ne)),
-                Some(_) => {
-                    self.unwind();
-                    Some(Ok(Token::Bang))
-                }
-                None => Some(Ok(Token::Bang)),
-            },
-            b'<' => match self.read_byte() {
-                Some(b'=') => Some(Ok(Token::Le)),
-                Some(_) => {
-                    self.unwind();
-                    Some(Ok(Token::Lt))
-                }
-                None => Some(Ok(Token::Lt)),
-            },
-            b'>' => match self.read_byte() {
-                Some(b'=') => Some(Ok(Token::Ge)),
-                Some(_) => {
-                    self.unwind();
-                    Some(Ok(Token::Gt))
-                }
-                None => Some(Ok(Token::Gt)),
-            },
-            b'#' => {
-                self.skip_comment();
-
-                self.next()
-            }
-            b => {
-                self.unwind();
-
-                if is_atom_head(b) {
-                    let atom = self.read_atom();
-
-                    if let Some(k) = to_keyword(atom) {
-                        Some(Ok(k))
-                    } else {
-                        // identifier
-                        debug_assert!(atom.is_ascii());
-
-                        let ident = std::str::from_utf8(atom).unwrap();
-                        Some(Ok(Token::Ident(ident.into())))
+                b'=' => match self.read_byte() {
+                    Some(b'=') => Ok(Kind::Eq),
+                    Some(_) => {
+                        self.unwind();
+                        Ok(Kind::Assign)
                     }
-                } else {
-                    Some(Err(lex::Error::Unexpected(b)))
+                    None => Ok(Kind::Assign),
+                },
+                b'!' => match self.read_byte() {
+                    Some(b'=') => Ok(Kind::Ne),
+                    Some(_) => {
+                        self.unwind();
+                        Ok(Kind::Bang)
+                    }
+                    None => Ok(Kind::Bang),
+                },
+                b'<' => match self.read_byte() {
+                    Some(b'=') => Ok(Kind::Le),
+                    Some(_) => {
+                        self.unwind();
+                        Ok(Kind::Lt)
+                    }
+                    None => Ok(Kind::Lt),
+                },
+                b'>' => match self.read_byte() {
+                    Some(b'=') => Ok(Kind::Ge),
+                    Some(_) => {
+                        self.unwind();
+                        Ok(Kind::Gt)
+                    }
+                    None => Ok(Kind::Gt),
+                },
+                b'#' => {
+                    self.skip_comment();
+
+                    continue;
                 }
-            }
+                b => {
+                    self.unwind();
+
+                    if is_atom_head(b) {
+                        let atom = self.read_atom();
+
+                        if let Some(k) = to_keyword(atom) {
+                            Ok(k)
+                        } else {
+                            // identifier
+                            debug_assert!(atom.is_ascii());
+
+                            let ident = std::str::from_utf8(atom).unwrap();
+                            Ok(Kind::Ident(ident.into()))
+                        }
+                    } else {
+                        break Some(Err(lex::Error {
+                            pos,
+                            kind: lex::error::Kind::Unexpected(b),
+                        }));
+                    }
+                }
+            };
+
+            break Some(kind.map(|kind| Token { pos, kind }));
         }
     }
 }
 
-impl Lexer {
+impl Lexer<'_> {
     fn read_byte(&mut self) -> Option<u8> {
         self.input.get(self.cursor).map(|b| {
             self.cursor += 1;
@@ -119,9 +131,9 @@ impl Lexer {
     }
 }
 
-impl Lexer {
+impl<'a> Lexer<'a> {
     // ident or keyword
-    fn read_atom(&mut self) -> &[u8] {
+    fn read_atom(&mut self) -> &'a [u8] {
         let start_pos = self.cursor;
 
         let mut end_pos = start_pos + 1;
@@ -140,19 +152,29 @@ impl Lexer {
     }
 
     fn read_int(&mut self) -> lex::Result<i32> {
+        let start_pos = self.cursor;
+
         let mut num: i32 = 0;
 
         while let Some(&b) = self.input.get(self.cursor) {
             match b {
                 b'0'..=b'9' => {
-                    num = num.checked_mul(10).ok_or(lex::Error::Overflow)?;
                     num = num
-                        .checked_add(i32::from(b - b'0'))
-                        .ok_or(lex::Error::Overflow)?;
+                        .checked_mul(10)
+                        .and_then(|num| num.checked_add(i32::from(b - b'0')))
+                        .ok_or(lex::Error {
+                            pos: start_pos,
+                            kind: lex::error::Kind::Overflow,
+                        })?;
 
                     self.cursor += 1;
                 }
-                _ if is_atom_tail(b) => return Err(lex::Error::BadDigit(b)),
+                _ if is_atom_tail(b) => {
+                    return Err(lex::Error {
+                        pos: start_pos,
+                        kind: lex::error::Kind::BadDigit(b),
+                    });
+                }
                 _ => break,
             }
         }
@@ -162,10 +184,15 @@ impl Lexer {
 
     // with '"' skipped
     fn read_string(&mut self) -> lex::Result<Box<str>> {
+        let string_start_pos = self.cursor - 1;
+
         let len = self.input[self.cursor..]
             .iter()
             .position(|b| *b == b'"')
-            .ok_or(lex::Error::Quote)?;
+            .ok_or(lex::Error {
+                pos: string_start_pos,
+                kind: lex::error::Kind::Quote,
+            })?;
 
         let s = &self.input[self.cursor..][..len];
         let s = std::str::from_utf8(s).unwrap().into();
@@ -193,15 +220,15 @@ fn is_atom_tail(b: u8) -> bool {
     is_atom_head(b) || b.is_ascii_digit()
 }
 
-fn to_keyword(atom: &[u8]) -> Option<Token> {
+fn to_keyword(atom: &[u8]) -> Option<Kind> {
     match atom {
-        b"let" => Some(Token::Let),
-        b"true" => Some(Token::True),
-        b"false" => Some(Token::False),
-        b"fn" => Some(Token::Fn),
-        b"if" => Some(Token::If),
-        b"else" => Some(Token::Else),
-        b"return" => Some(Token::Return),
+        b"let" => Some(Kind::Let),
+        b"true" => Some(Kind::True),
+        b"false" => Some(Kind::False),
+        b"fn" => Some(Kind::Fn),
+        b"if" => Some(Kind::If),
+        b"else" => Some(Kind::Else),
+        b"return" => Some(Kind::Return),
         _ => None,
     }
 }

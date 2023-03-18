@@ -1,62 +1,65 @@
 use super::*;
 
-macro_rules! t {
-    ($input:literal, $output:expr) => {
-        let lexer = crate::lex::Lexer::new($input.as_bytes().into());
-        let mut parser = crate::parse::Parser::new(lexer);
-        assert_eq!(parser.next(), Some(Ok(Node::Expr($output))));
-        assert_eq!(parser.next(), None);
-    };
-}
-
-macro_rules! t_err {
-    ($input:literal, $output:expr) => {
-        let lexer = crate::lex::Lexer::new($input.as_bytes().into());
-        let mut parser = crate::parse::Parser::new(lexer);
-        assert_eq!(parser.next(), Some(Err($output)));
-    };
-}
-
 fn ident(name: &str) -> Expr {
-    Expr::Ident(Ident::new(name.into()))
+    Expr::Ident(Ident::test(name))
 }
 
-fn unary(op: UnaryOp, expr: Expr) -> Expr {
-    Expr::Unary(op, Box::new(expr))
+fn unary(op: UnaryOp, value: Expr) -> Expr {
+    Expr::Unary(Box::new(Unary { pos: 0, op, value }))
+}
+
+fn pic_eq(left: &Node, right: &Expr) -> bool {
+    match left {
+        Node::Stmt(_) => false,
+        Node::Expr(left) => pic_eq_expr(left, right),
+    }
+}
+
+macro_rules! t {
+    ($input:literal, $($right:expr),*) => {
+        let nodes = parse($input).unwrap();
+
+        let mut i = 0;
+
+        $(
+            match (&nodes[i], $right) {
+                (left, right) if !pic_eq(left, &right) => {
+                    panic!("mismatch at index {}: {:?} != {:?}", i, left, right);
+                }
+                _ => {
+                    i += 1;
+                }
+            }
+        )*;
+
+        assert_eq!(nodes.len(), i);
+    };
 }
 
 #[test]
 fn int_() {
-    t!("0", Expr::Int(0));
-    t!("01", Expr::Int(1));
-    t!("2", Expr::Int(2));
-    t!("123456", Expr::Int(123456));
+    t!("0", int(0));
+    t!("01", int(1));
+    t!("2", int(2));
+    t!("123456", int(123456));
 }
 
 #[test]
 fn bool_() {
-    t!("true", Expr::Bool(true));
-    t!("false", Expr::Bool(false));
+    t!("true", bool(true));
+    t!("false", bool(false));
 }
 
 #[test]
 fn str_() {
-    t!("\"foo\"", Expr::Str("foo".into()));
+    t!("\"foo\"", str("foo"));
 }
 
 #[test]
 fn seq_() {
     t!(
         "[2, a, true, \"b\"]",
-        Expr::Seq(
-            vec![
-                Expr::Int(2),
-                ident("a"),
-                Expr::Bool(true),
-                Expr::Str("b".into())
-            ]
-            .into_boxed_slice()
-        )
+        seq(vec![int(2), ident("a"), bool(true), str("b")])
     );
 }
 
@@ -64,14 +67,15 @@ fn seq_() {
 fn map_() {
     t!(
         "{1: a, true: \"b\", \"three\": 3}",
-        Expr::Map(
-            vec![
-                (Expr::Int(1), ident("a")),
-                (Expr::Bool(true), Expr::Str("b".into())),
-                (Expr::Str("three".into()), Expr::Int(3))
+        Expr::Map(Map {
+            pos: 0,
+            entries: vec![
+                (int(1), ident("a")),
+                (bool(true), str("b")),
+                (str("three"), int(3))
             ]
             .into_boxed_slice()
-        )
+        })
     );
 }
 
@@ -82,28 +86,31 @@ fn ident_() {
     t!("a_0", ident("a_0"));
     t!("_a", ident("_a"));
 
-    t_err!(
-        "1a",
-        crate::parse::Error::Lex(crate::lex::Error::BadDigit(b'a'))
-    );
+    // TODO: match on specific error
+    //
+    // TODO: std::assert_matches::assert_matches is unstable
+    assert!(matches!(
+        parse("1a").unwrap_err(),
+        crate::parse::Error::Lex(_)
+    ));
 }
 
 #[test]
 fn unary_() {
-    t!("-1", unary(UnaryOp::Neg, Expr::Int(1)));
+    t!("-1", unary(UnaryOp::Neg, int(1)));
     t!("-a", unary(UnaryOp::Neg, ident("a")));
 
-    t!("!true", unary(UnaryOp::Not, Expr::Bool(true)));
-    t!("!false", unary(UnaryOp::Not, Expr::Bool(false)));
+    t!("!true", unary(UnaryOp::Not, bool(true)));
+    t!("!false", unary(UnaryOp::Not, bool(false)));
     t!("!a", unary(UnaryOp::Not, ident("a")));
 }
 
 #[test]
 fn binary_() {
-    t!("1 + 2", binary(Expr::Int(1), BinaryOp::Add, Expr::Int(2)));
-    t!("1 - 2", binary(Expr::Int(1), BinaryOp::Sub, Expr::Int(2)));
-    t!("1 * 2", binary(Expr::Int(1), BinaryOp::Mul, Expr::Int(2)));
-    t!("1 / 2", binary(Expr::Int(1), BinaryOp::Div, Expr::Int(2)));
+    t!("1 + 2", binary(int(1), BinaryOp::Add, int(2)));
+    t!("1 - 2", binary(int(1), BinaryOp::Sub, int(2)));
+    t!("1 * 2", binary(int(1), BinaryOp::Mul, int(2)));
+    t!("1 / 2", binary(int(1), BinaryOp::Div, int(2)));
 
     t!("a + b", binary(ident("a"), BinaryOp::Add, ident("b")));
     t!("a - b", binary(ident("a"), BinaryOp::Sub, ident("b")));
@@ -115,32 +122,20 @@ fn binary_() {
 fn precedence() {
     t!(
         "1 + 2 * 3",
-        binary(
-            Expr::Int(1),
-            BinaryOp::Add,
-            binary(Expr::Int(2), BinaryOp::Mul, Expr::Int(3))
-        )
+        binary(int(1), BinaryOp::Add, binary(int(2), BinaryOp::Mul, int(3)))
     );
 
     t!(
         "1 + 2 * 3 - 4",
         binary(
-            binary(
-                Expr::Int(1),
-                BinaryOp::Add,
-                binary(Expr::Int(2), BinaryOp::Mul, Expr::Int(3))
-            ),
+            binary(int(1), BinaryOp::Add, binary(int(2), BinaryOp::Mul, int(3))),
             BinaryOp::Sub,
-            Expr::Int(4)
+            int(4)
         )
     );
 
     t!(
         "(1 + 2) * 3",
-        binary(
-            binary(Expr::Int(1), BinaryOp::Add, Expr::Int(2)),
-            BinaryOp::Mul,
-            Expr::Int(3),
-        )
+        binary(binary(int(1), BinaryOp::Add, int(2)), BinaryOp::Mul, int(3),)
     );
 }

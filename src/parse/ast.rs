@@ -1,64 +1,173 @@
 use std::rc::Rc;
 
 #[derive(Debug)]
-#[cfg_attr(test, derive(PartialEq, Eq))]
 pub(crate) enum Node {
     Expr(Expr),
     Stmt(Stmt),
 }
 
 #[derive(Debug)]
-#[cfg_attr(test, derive(PartialEq, Eq))]
 pub(crate) enum Stmt {
     // let <ident> = <expr>;
-    Let(Ident, Expr),
+    Let(Let),
 
     // return;
     // return <expr>;
-    Return(Option<Expr>),
+    Return(Return),
 }
 
 #[derive(Debug)]
-#[cfg_attr(test, derive(PartialEq, Eq))]
+pub(crate) struct Let {
+    // position to the let keyword
+    //
+    // let <ident> = <expr>;
+    // ^
+    pub(crate) pos: usize,
+
+    pub(crate) ident: Ident,
+
+    pub(crate) value: Expr,
+}
+
+#[derive(Debug)]
+pub(crate) struct Return {
+    // position to the return keyword
+    //
+    // return;
+    // ^
+    //
+    // return <expr>;
+    // ^
+    pub(crate) pos: usize,
+
+    pub(crate) value: Option<Expr>,
+}
+
+#[derive(Debug)]
 pub(crate) enum Expr {
-    Int(i32),
+    Int(Int),
 
-    Bool(bool),
+    Bool(Bool),
 
-    Str(Rc<str>),
+    Str(Str),
 
     // `[<element>, ...]`
-    Seq(Box<[Expr]>),
+    Seq(Seq),
 
     // `{<key>: <value>, ...}`
-    Map(Box<[(Expr, Expr)]>),
+    Map(Map),
 
     Ident(Ident),
 
-    // `<target>[<index>]`
-    Index(Box<Expr>, Box<Expr>),
+    // `<base>[<subscript>]`
+    Index(Box<Index>),
 
     // `<op> <expr>`
-    Unary(UnaryOp, Box<Expr>),
+    Unary(Box<Unary>),
 
     // `<expr> <op> <expr>`
-    Binary(Box<Expr>, BinaryOp, Box<Expr>),
+    Binary(Box<Binary>),
 
     // `fn() { <body> }`
     Closure(Rc<Closure>),
 
     // `<ident>(<arg>, ...)`
-    Call(Box<Expr>, Box<[Expr]>),
+    Call(Box<Call>),
 
     // `if (<condition>) { <consequence> } else { <alternative> }`
     If(Box<If>),
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub(crate) struct Ident(Rc<str>);
+#[derive(Debug)]
+pub(crate) struct Int {
+    // position to first digit
+    //
+    // 123
+    // ^
+    pub(crate) pos: usize,
+    pub(crate) value: i32,
+}
 
-#[derive(Clone, Copy, Debug)]
-#[cfg_attr(test, derive(PartialEq, Eq))]
+#[derive(Debug)]
+pub(crate) struct Bool {
+    // position to first character
+    //
+    // true
+    // ^
+    //
+    // false
+    // ^
+    pub(crate) pos: usize,
+    pub(crate) value: bool,
+}
+
+#[derive(Debug)]
+pub(crate) struct Str {
+    // position to left quotation mark
+    //
+    // "foobar"
+    // ^
+    pub(crate) pos: usize,
+    pub(crate) value: Rc<str>,
+}
+
+#[derive(Debug)]
+pub(crate) struct Seq {
+    // position to left bracket token
+    //
+    // [<element>, ...]
+    // ^
+    pub(crate) pos: usize,
+    pub(crate) elements: Box<[Expr]>,
+}
+
+#[derive(Debug)]
+pub(crate) struct Map {
+    // position to left brace token
+    //
+    // { <key>: <value> ... }
+    // ^
+    pub(crate) pos: usize,
+    pub(crate) entries: Box<[(Expr, Expr)]>,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct Ident {
+    // position to first character
+    //
+    // foobar
+    // ^
+    pos: usize,
+    sym: Rc<str>,
+}
+
+#[derive(Debug)]
+pub(crate) struct Index {
+    // position to the left bracket token
+    //
+    // base[subscript]
+    //     ^
+    pub(crate) pos: usize,
+
+    pub(crate) base: Expr,
+
+    pub(crate) subscript: Expr,
+}
+
+#[derive(Debug)]
+pub(crate) struct Unary {
+    // position to the unary operator
+    //
+    // <op> <expr>
+    // ^
+    pub(crate) pos: usize,
+
+    pub(crate) op: UnaryOp,
+
+    pub(crate) value: Expr,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum UnaryOp {
     /// `-`
     Neg,
@@ -67,8 +176,22 @@ pub(crate) enum UnaryOp {
     Not,
 }
 
-#[derive(Clone, Copy, Debug)]
-#[cfg_attr(test, derive(PartialEq, Eq))]
+#[derive(Debug)]
+pub(crate) struct Binary {
+    // position to the binary operator
+    //
+    // <left> <op> <right>
+    //        ^
+    pub(crate) pos: usize,
+
+    pub(crate) left: Expr,
+
+    pub(crate) op: BinaryOp,
+
+    pub(crate) right: Expr,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum BinaryOp {
     // arithmetic
     Add,
@@ -86,35 +209,99 @@ pub(crate) enum BinaryOp {
 }
 
 #[derive(Debug)]
-#[cfg_attr(test, derive(PartialEq, Eq))]
 pub(crate) struct Closure {
+    // position to the fn keyword
+    //
+    // fn() { ... }
+    // ^
+    pub(crate) pos: usize,
     pub(crate) parameters: Box<[Ident]>,
     pub(crate) body: Block,
 }
 
 #[derive(Debug)]
-#[cfg_attr(test, derive(PartialEq, Eq))]
 pub(crate) struct Block {
+    // position to the left brace
+    //
+    // { ... }
+    // ^
+    pub(crate) pos: usize,
+
     pub(crate) nodes: Box<[Node]>,
 }
 
 #[derive(Debug)]
-#[cfg_attr(test, derive(PartialEq, Eq))]
+pub(crate) struct Call {
+    // position to the left parenthesis
+    //
+    // foo(<arg>...)
+    //    ^
+    pub(crate) pos: usize,
+    pub(crate) target: Expr,
+    pub(crate) args: Box<[Expr]>,
+}
+
+#[derive(Debug)]
 pub(crate) struct If {
+    // position to the if keyword
+    //
+    // if <expr> { ... }
+    // ^
+    pub(crate) pos: usize,
+
     pub(crate) condition: Expr,
     pub(crate) consequence: Block,
     pub(crate) alternative: Option<Block>,
 }
 
+impl Expr {
+    pub(crate) fn pos(&self) -> usize {
+        match self {
+            Self::Int(expr) => expr.pos,
+            Self::Bool(expr) => expr.pos,
+            Self::Str(expr) => expr.pos,
+            Self::Seq(expr) => expr.pos,
+            Self::Map(expr) => expr.pos,
+            Self::Ident(expr) => expr.pos,
+            Self::Index(expr) => expr.pos,
+            Self::Unary(expr) => expr.pos,
+            Self::Binary(expr) => expr.pos,
+            Self::Closure(expr) => expr.pos,
+            Self::Call(expr) => expr.pos,
+            Self::If(expr) => expr.pos,
+        }
+    }
+}
+
 impl Ident {
-    pub(crate) fn new(name: Rc<str>) -> Self {
-        Self(name)
+    pub(crate) fn from_src(pos: usize, sym: Rc<str>) -> Self {
+        Self { pos, sym }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn test(sym: &str) -> Self {
+        Self {
+            pos: 0,
+            sym: sym.into(),
+        }
+    }
+
+    pub(crate) fn pos(&self) -> usize {
+        self.pos
+    }
+
+    pub(crate) fn sym(&self) -> &str {
+        &self.sym
+    }
+
+    pub(crate) fn sym_rc_str(&self) -> &Rc<str> {
+        &self.sym
     }
 }
 
 impl std::fmt::Display for Ident {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(f)
+        self.sym.fmt(f)
     }
 }
 

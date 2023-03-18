@@ -44,7 +44,7 @@ fn test_pass(path: &std::path::Path) -> bool {
     let code = std::fs::read(path).unwrap();
 
     let mut env = oris::Env::new();
-    match oris::entry(&mut env, code) {
+    match oris::entry(&mut env, &code) {
         Ok(_) => true,
         Err(error) => {
             eprintln!("failed, error: {}", error);
@@ -57,7 +57,7 @@ fn test_fail(path: &std::path::Path) -> bool {
     let code = std::fs::read(path).unwrap();
 
     let mut env = oris::Env::new();
-    match oris::entry(&mut env, code) {
+    match oris::entry(&mut env, &code) {
         Ok(_) => {
             eprintln!(" runs ok while expecting to return an error");
 
@@ -71,7 +71,9 @@ fn test_fail(path: &std::path::Path) -> bool {
                         expected_error_string.pop();
                     }
 
-                    let found_error_string = error.to_string();
+                    let (line, column) = error.line_column(&code);
+                    let found_error_string =
+                        format!("{}:{}\n{}", line + 1, column + 1, error.to_string());
 
                     if found_error_string == expected_error_string {
                         true

@@ -4,7 +4,7 @@ use crate::eval;
 
 pub type Result = std::result::Result<Option<Value>, Error>;
 
-pub fn entry(env: &mut Env, code: Vec<u8>) -> Result {
+pub fn entry(env: &mut Env, code: &[u8]) -> Result {
     let result = eval::entry(&mut env.inner, code)?;
 
     Ok(Value::from_inner(result))
@@ -44,6 +44,18 @@ impl fmt::Debug for Value {
 
 pub struct Error {
     inner: eval::Error,
+}
+
+impl Error {
+    /// both line and column number are 0 based
+    ///
+    /// # Panics
+    ///
+    /// panics if `code` is not the original source code where this error is
+    /// produced
+    pub fn line_column(&self, code: &[u8]) -> (usize, usize) {
+        self.inner.pos_to_line_column(code)
+    }
 }
 
 impl From<eval::Error> for Error {

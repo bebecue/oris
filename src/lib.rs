@@ -9,7 +9,7 @@
 //!     print("hello, world");
 //! "#;
 //!
-//! oris::entry(&mut env, code.into()).unwrap();
+//! oris::entry(&mut env, code.as_bytes()).unwrap();
 //! ```
 
 #[macro_use]
