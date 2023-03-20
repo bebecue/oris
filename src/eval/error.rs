@@ -47,10 +47,10 @@ pub(crate) enum Error {
 }
 
 impl Error {
-    pub(crate) fn pos_to_line_column(&self, code: &[u8]) -> (usize, usize) {
-        let pos = match self {
+    pub(crate) fn pos(&self) -> usize {
+        match self {
             Self::AssertEq { pos, .. } => *pos,
-            Self::Parse(error) => error.pos(code),
+            Self::Parse(error) => error.pos(),
             Self::Undefined(ident) => ident.pos(),
             Self::Index { pos, .. } => *pos,
             Self::Unary { pos, .. } => *pos,
@@ -59,17 +59,6 @@ impl Error {
             Self::ArgCount { pos, .. } => *pos,
             Self::ArgType { pos, .. } => *pos,
             Self::ArgValue { pos, .. } => *pos,
-        };
-
-        assert!(pos <= code.len());
-
-        match code[..pos].iter().rposition(|b| *b == b'\n') {
-            Some(i) => {
-                let (lines, column_text) = code[..pos].split_at(i + 1);
-                let line_number = lines.iter().filter(|b| **b == b'\n').count();
-                (line_number, column_text.len()) // TODO: support UTF-8?
-            }
-            None => (0, code[..pos].len()), // TODO: support UTF-8?
         }
     }
 }

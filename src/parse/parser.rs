@@ -76,6 +76,8 @@ impl<'a> Parser<'a> {
 
 impl<'a> Parser<'a> {
     fn expect_ident(&mut self) -> parse::Result<ast::Ident> {
+        let pos = self.lexer.pos();
+
         match self.lexer.next() {
             Some(Ok(tk)) => match tk.kind {
                 token::Kind::Ident => {
@@ -88,13 +90,16 @@ impl<'a> Parser<'a> {
                 })),
             },
             Some(Err(err)) => Err(err.into()),
-            None => Err(parse::Error::Incomplete(Expected::Token(
-                token::Kind::Ident,
-            ))),
+            None => Err(parse::Error::Incomplete(parse::error::Incomplete {
+                pos,
+                expected: Expected::Token(token::Kind::Ident),
+            })),
         }
     }
 
     fn expect_token(&mut self, expected: token::Kind) -> parse::Result<usize> {
+        let pos = self.lexer.pos();
+
         match self.lexer.next() {
             Some(Ok(next_token)) => {
                 if next_token.kind == expected {
@@ -107,7 +112,10 @@ impl<'a> Parser<'a> {
                 }
             }
             Some(Err(err)) => Err(err.into()),
-            None => Err(parse::Error::Incomplete(Expected::Token(expected))),
+            None => Err(parse::Error::Incomplete(parse::error::Incomplete {
+                pos,
+                expected: Expected::Token(expected),
+            })),
         }
     }
 

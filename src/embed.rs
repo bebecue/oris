@@ -54,7 +54,18 @@ impl Error {
     /// panics if `code` is not the original source code where this error is
     /// produced
     pub fn line_column(&self, code: &[u8]) -> (usize, usize) {
-        self.inner.pos_to_line_column(code)
+        pos_to_line_column(self.inner.pos(), code)
+    }
+}
+
+fn pos_to_line_column(pos: usize, code: &[u8]) -> (usize, usize) {
+    match code[..pos].iter().rposition(|b| *b == b'\n') {
+        Some(i) => {
+            let (lines, column_text) = code[..pos].split_at(i + 1);
+            let line_number = lines.iter().filter(|b| **b == b'\n').count();
+            (line_number, column_text.len()) // TODO: support UTF-8?
+        }
+        None => (0, code[..pos].len()), // TODO: support UTF-8?
     }
 }
 

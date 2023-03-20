@@ -3,8 +3,14 @@ use crate::lex;
 #[derive(Debug)]
 pub(crate) enum Error {
     Lex(lex::Error),
-    Incomplete(Expected),
+    Incomplete(Incomplete),
     Mismatch(Mismatch),
+}
+
+#[derive(Debug)]
+pub(crate) struct Incomplete {
+    pub(crate) pos: usize,
+    pub(crate) expected: Expected,
 }
 
 #[derive(Debug)]
@@ -20,11 +26,10 @@ pub(crate) enum Expected {
 }
 
 impl Error {
-    // FIXME: remove `code` argument?
-    pub(crate) fn pos(&self, code: &[u8]) -> usize {
+    pub(crate) fn pos(&self) -> usize {
         match self {
             Self::Lex(error) => error.pos,
-            Self::Incomplete(_) => code.len(),
+            Self::Incomplete(incomplete) => incomplete.pos,
             Self::Mismatch(mismatch) => mismatch.left.pos,
         }
     }
@@ -40,8 +45,8 @@ impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Error::Lex(error) => error.fmt(f),
-            Error::Incomplete(expected) => {
-                write!(f, "miss {}", expected)
+            Error::Incomplete(incomplete) => {
+                write!(f, "miss {}", incomplete.expected)
             }
             Error::Mismatch(error) => {
                 write!(f, "expect {}, found {:?}", error.right, error.left)

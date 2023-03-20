@@ -18,6 +18,10 @@ impl<'a> Lexer<'a> {
         }
     }
 
+    pub(crate) fn pos(&self) -> usize {
+        self.cursor
+    }
+
     pub(crate) fn peek(&mut self) -> Option<&lex::Result<Token>> {
         if self.peeked.is_none() {
             self.peeked = self.next();

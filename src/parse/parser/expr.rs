@@ -40,10 +40,13 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_expr_(&mut self, precedence: Option<Precedence>) -> parse::Result<ast::Expr> {
-        let token = self
-            .lexer
-            .next()
-            .ok_or_else(|| parse::Error::Incomplete(Expected::Expr))??;
+        let pos = self.lexer.pos();
+        let token = self.lexer.next().ok_or_else(|| {
+            parse::Error::Incomplete(parse::error::Incomplete {
+                pos,
+                expected: Expected::Expr,
+            })
+        })??;
 
         let mut left = self.parse_prefix_expr(token)?;
 
@@ -320,6 +323,7 @@ impl<'a> Parser<'a> {
         loop {
             elements.push(parse_element(self)?);
 
+            let pos = self.lexer.pos();
             match self.lexer.next() {
                 Some(Ok(tk)) => {
                     if tk.kind == separater {
@@ -335,23 +339,28 @@ impl<'a> Parser<'a> {
                 }
                 Some(Err(err)) => return Err(err.into()),
                 None => {
-                    return Err(parse::Error::Incomplete(Expected::Token(end)));
+                    return Err(parse::Error::Incomplete(parse::error::Incomplete {
+                        pos,
+                        expected: Expected::Token(end),
+                    }));
                 }
             }
         }
     }
 
     fn parse_block(&mut self) -> parse::Result<ast::Block> {
-        let pos = self.expect_token(token::Kind::LeftBrace)?;
+        self.expect_token(token::Kind::LeftBrace)?;
 
         let mut nodes = Vec::new();
 
         loop {
-            match self
-                .lexer
-                .peek()
-                .ok_or_else(|| parse::Error::Incomplete(Expected::Token(token::Kind::RightBrace)))?
-            {
+            let pos = self.lexer.pos();
+            match self.lexer.peek().ok_or_else(|| {
+                parse::Error::Incomplete(parse::error::Incomplete {
+                    pos,
+                    expected: Expected::Token(token::Kind::RightBrace),
+                })
+            })? {
                 Err(_) => return Err(self.lexer.next().unwrap().unwrap_err().into()),
                 Ok(tk) if tk.kind == token::Kind::RightBrace => {
                     self.lexer.next().unwrap().unwrap(); // skip `}`
