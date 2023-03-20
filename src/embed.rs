@@ -29,6 +29,27 @@ impl Value {
     pub fn is_unit(&self) -> bool {
         matches!(self.value, eval::Value::Unit)
     }
+
+    pub fn as_bool(&self) -> Option<bool> {
+        match self.value {
+            eval::Value::Bool(value) => Some(value),
+            _ => None,
+        }
+    }
+
+    pub fn as_int(&self) -> Option<i32> {
+        match self.value {
+            eval::Value::Int(value) => Some(value),
+            _ => None,
+        }
+    }
+
+    pub fn as_str(&self) -> Option<&str> {
+        match self.value {
+            eval::Value::Str(ref value) => Some(value),
+            _ => None,
+        }
+    }
 }
 
 impl fmt::Debug for Value {
