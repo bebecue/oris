@@ -1,16 +1,4 @@
-//! `oris` is an interpreter for the [Monkey](https://monkeylang.org/) programming language
-//!
-//! # Examples
-//!
-//! ```
-//! let mut env = oris::Env::new();
-//!
-//! let code = r#"
-//!     print("hello, world");
-//! "#;
-//!
-//! oris::entry(&mut env, code.as_bytes()).unwrap();
-//! ```
+#![doc = include_str!("../README.md")]
 
 #[macro_use]
 mod macros;
