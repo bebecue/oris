@@ -2,8 +2,9 @@
 name = "oris"
 version = "0.1.0"
 edition = "2021"
-description = "An interpreter for the Monkey programming language"
+description = "An interpreter for Monkey"
 license = "MIT"
+categories = ["compilers"]
 
 [[test]]
 name = "tests"
