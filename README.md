@@ -30,7 +30,7 @@ $ oris dt.oris
 
 ## Embedded
 
-```
+```rust
 let mut env = oris::Env::new();
 
 let code = b"
