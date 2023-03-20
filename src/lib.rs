@@ -20,4 +20,4 @@ mod eval;
 mod lex;
 mod parse;
 
-pub use embed::{entry, Env, Error, Result};
+pub use embed::{entry, Env, Error, Result, Value};
