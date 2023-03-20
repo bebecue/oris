@@ -13,9 +13,9 @@ pub(crate) enum Kind {
     /// integer literal is too large
     Overflow,
 
-    BadDigit(u8),
+    BadDigit,
 
-    Unexpected(u8),
+    Unexpected,
 }
 
 impl std::fmt::Display for Error {
@@ -23,8 +23,8 @@ impl std::fmt::Display for Error {
         match self.kind {
             Kind::Quote => f.write_str("missing right quote for string literal"),
             Kind::Overflow => f.write_str("integer literal is too large"),
-            Kind::BadDigit(d) => write!(f, "bad digit `{}` in integer literal", char::from(d)),
-            Kind::Unexpected(b) => write!(f, "unexpected byte ({}){:#04x}", char::from(b), b),
+            Kind::BadDigit => write!(f, "bad digit in integer literal"),
+            Kind::Unexpected => write!(f, "unexpected byte"),
         }
     }
 }

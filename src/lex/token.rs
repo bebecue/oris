@@ -30,15 +30,15 @@ pub(crate) enum Kind {
     /// `foobar`
     ///
     /// identifier
-    Ident(Box<str>),
+    Ident,
 
     /// `42`
-    Int(i32),
+    Int,
 
     /// `"hello, world"`
     ///
     /// UTF-8 string
-    Str(Box<str>),
+    Str,
 
     /// `,`
     Comma,

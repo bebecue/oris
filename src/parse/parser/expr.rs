@@ -43,7 +43,7 @@ impl<'a> Parser<'a> {
         let token = self
             .lexer
             .next()
-            .ok_or_else(|| parse::Error::Incomplete(Box::new(Expected::Expr)))??;
+            .ok_or_else(|| parse::Error::Incomplete(Expected::Expr))??;
 
         let mut left = self.parse_prefix_expr(token)?;
 
@@ -74,14 +74,20 @@ impl<'a> Parser<'a> {
                 pos: token.pos,
                 value: false,
             })),
-            token::Kind::Int(value) => Ok(ast::Expr::Int(ast::Int {
+            token::Kind::Int => Ok(ast::Expr::Int(ast::Int {
                 pos: token.pos,
-                value,
+                value: self
+                    .lexer
+                    .lex_int(token.pos)
+                    .map(|(num, _cursor)| num)
+                    .unwrap(),
             })),
-            token::Kind::Str(value) => Ok(ast::Expr::Str(ast::Str {
-                pos: token.pos,
-                value: value.into(),
-            })),
+            token::Kind::Str => Ok(self
+                .lexer
+                .lex_str(token.pos)
+                .map(|s| ast::Str::from_src(token.pos, s))
+                .map(ast::Expr::Str)
+                .unwrap()),
             token::Kind::LeftParen => {
                 let expr = self.parse_expr()?;
                 self.expect_token(token::Kind::RightParen)?;
@@ -91,9 +97,9 @@ impl<'a> Parser<'a> {
                 .parse_function_expression(token.pos)
                 .map(std::rc::Rc::new)
                 .map(ast::Expr::Closure),
-            token::Kind::Ident(ident) => Ok(ast::Expr::Ident(ast::Ident::from_src(
+            token::Kind::Ident => Ok(ast::Expr::Ident(ast::Ident::from_str(
                 token.pos,
-                ident.into(),
+                self.lexer.lex_atom(token.pos),
             ))),
             token::Kind::If => self
                 .parse_if_expr(token.pos)
@@ -143,10 +149,10 @@ impl<'a> Parser<'a> {
                     })
                 })
             }
-            _ => Err(parse::Error::Mismatch(Box::new(parse::error::Mismatch {
+            _ => Err(parse::Error::Mismatch(parse::error::Mismatch {
                 left: token,
                 right: Expected::Expr,
-            }))),
+            })),
         }
     }
 
@@ -221,10 +227,10 @@ impl<'a> Parser<'a> {
                     subscript,
                 })))
             }
-            _ => Err(parse::Error::Mismatch(Box::new(parse::error::Mismatch {
+            _ => Err(parse::Error::Mismatch(parse::error::Mismatch {
                 left: tk,
                 right: Expected::Expr,
-            }))),
+            })),
         }
     }
 }
@@ -271,13 +277,13 @@ impl<'a> Parser<'a> {
 
         let consequence = self.parse_block()?;
 
-        let alternative = if let Some(_tk) = self
-            .lexer
-            .next_if(|tk| matches!(tk, Ok(tk) if tk.kind == token::Kind::Else))
-        {
-            Some(self.parse_block()?)
-        } else {
-            None
+        let alternative = match self.lexer.peek() {
+            Some(Ok(tk)) if tk.kind == token::Kind::Else => {
+                let _ = self.lexer.next();
+
+                Some(self.parse_block()?)
+            }
+            _ => None,
         };
 
         Ok(ast::If {
@@ -299,13 +305,14 @@ impl<'a> Parser<'a> {
     where
         F: Fn(&mut Parser<'a>) -> parse::Result<T>,
     {
-        if let Some(_) = self
-            .lexer
-            .next_if(|tk| matches!(tk, Ok(tk) if tk.kind == end))
-        {
-            // empty
+        if let Some(Ok(tk)) = self.lexer.peek() {
+            if tk.kind == end {
+                // empty
 
-            return Ok(Vec::new());
+                let _ = self.lexer.next();
+
+                return Ok(Vec::new());
+            }
         }
 
         let mut elements = Vec::new();
@@ -320,15 +327,15 @@ impl<'a> Parser<'a> {
                     } else if tk.kind == end {
                         return Ok(elements);
                     } else {
-                        return Err(parse::Error::Mismatch(Box::new(parse::error::Mismatch {
+                        return Err(parse::Error::Mismatch(parse::error::Mismatch {
                             left: tk,
                             right: Expected::Token(end),
-                        })));
+                        }));
                     }
                 }
                 Some(Err(err)) => return Err(err.into()),
                 None => {
-                    return Err(parse::Error::Incomplete(Box::new(Expected::Token(end))));
+                    return Err(parse::Error::Incomplete(Expected::Token(end)));
                 }
             }
         }
@@ -340,9 +347,11 @@ impl<'a> Parser<'a> {
         let mut nodes = Vec::new();
 
         loop {
-            match self.lexer.peek().ok_or_else(|| {
-                parse::Error::Incomplete(Box::new(Expected::Token(token::Kind::RightBrace)))
-            })? {
+            match self
+                .lexer
+                .peek()
+                .ok_or_else(|| parse::Error::Incomplete(Expected::Token(token::Kind::RightBrace)))?
+            {
                 Err(_) => return Err(self.lexer.next().unwrap().unwrap_err().into()),
                 Ok(tk) if tk.kind == token::Kind::RightBrace => {
                     self.lexer.next().unwrap().unwrap(); // skip `}`

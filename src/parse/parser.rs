@@ -6,14 +6,12 @@ use crate::{
 };
 
 pub(crate) struct Parser<'a> {
-    lexer: std::iter::Peekable<lex::Lexer<'a>>,
+    lexer: lex::Lexer<'a>,
 }
 
 impl<'a> Parser<'a> {
     pub(crate) fn new(lexer: lex::Lexer<'a>) -> Self {
-        Self {
-            lexer: lexer.peekable(),
-        }
+        Self { lexer }
     }
 }
 
@@ -49,15 +47,16 @@ impl<'a> Parser<'a> {
 
         let pos = self.expect_token(token::Kind::Return)?;
 
-        let value = if let Some(_tk) = self
-            .lexer
-            .next_if(|tk| matches!(tk, Ok(tk) if tk.kind==token::Kind::Semicolon))
-        {
-            None
-        } else {
-            let expr = self.parse_expr()?;
-            self.skip_optional_semicolon();
-            Some(expr)
+        let value = match self.lexer.peek() {
+            Some(Ok(tk)) if tk.kind == token::Kind::Semicolon => {
+                let _ = self.lexer.next();
+                None
+            }
+            _ => {
+                let expr = self.parse_expr()?;
+                self.skip_optional_semicolon();
+                Some(expr)
+            }
         };
 
         Ok(ast::Stmt::Return(ast::Return { pos, value }))
@@ -79,14 +78,19 @@ impl<'a> Parser<'a> {
     fn expect_ident(&mut self) -> parse::Result<ast::Ident> {
         match self.lexer.next() {
             Some(Ok(tk)) => match tk.kind {
-                token::Kind::Ident(sym) => Ok(ast::Ident::from_src(tk.pos, sym.into())),
-                _ => Err(parse::Error::Mismatch(Box::new(parse::error::Mismatch {
+                token::Kind::Ident => {
+                    let sym = self.lexer.lex_atom(tk.pos);
+                    Ok(ast::Ident::from_str(tk.pos, sym))
+                }
+                _ => Err(parse::Error::Mismatch(parse::error::Mismatch {
                     left: tk,
-                    right: Expected::Ident,
-                }))),
+                    right: Expected::Token(token::Kind::Ident),
+                })),
             },
             Some(Err(err)) => Err(err.into()),
-            None => Err(parse::Error::Incomplete(Box::new(Expected::Ident))),
+            None => Err(parse::Error::Incomplete(Expected::Token(
+                token::Kind::Ident,
+            ))),
         }
     }
 
@@ -96,21 +100,22 @@ impl<'a> Parser<'a> {
                 if next_token.kind == expected {
                     Ok(next_token.pos)
                 } else {
-                    Err(parse::Error::Mismatch(Box::new(parse::error::Mismatch {
+                    Err(parse::Error::Mismatch(parse::error::Mismatch {
                         left: next_token,
                         right: Expected::Token(expected),
-                    })))
+                    }))
                 }
             }
             Some(Err(err)) => Err(err.into()),
-            None => Err(parse::Error::Incomplete(Box::new(Expected::Token(
-                expected,
-            )))),
+            None => Err(parse::Error::Incomplete(Expected::Token(expected))),
         }
     }
 
     fn skip_optional_semicolon(&mut self) {
-        self.lexer
-            .next_if(|tk| matches!(tk, Ok(tk) if tk.kind == token::Kind::Semicolon));
+        if let Some(Ok(tk)) = self.lexer.peek() {
+            if tk.kind == token::Kind::Semicolon {
+                let _ = self.lexer.next();
+            }
+        }
     }
 }

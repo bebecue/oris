@@ -12,10 +12,7 @@ fn int(value: i32) -> Expr {
 }
 
 fn str(value: &str) -> Expr {
-    Expr::Str(Str {
-        pos: 0,
-        value: value.into(),
-    })
+    Expr::Str(Str::from_src(0, value))
 }
 
 fn seq(elements: Vec<Expr>) -> Expr {
@@ -90,7 +87,7 @@ fn pic_eq_expr(left: &Expr, right: &Expr) -> bool {
     match (left, right) {
         (Expr::Int(left), Expr::Int(right)) => left.value == right.value,
         (Expr::Bool(left), Expr::Bool(right)) => left.value == right.value,
-        (Expr::Str(left), Expr::Str(right)) => left.value == right.value,
+        (Expr::Str(left), Expr::Str(right)) => left.value() == right.value(),
         (Expr::Seq(left), Expr::Seq(right)) => {
             pic_eq_slice(&left.elements, &right.elements, pic_eq_expr)
         }

@@ -84,7 +84,7 @@ fn eval_expr(env: &mut Env, expr: &ast::Expr) -> Result<Eval> {
     match expr {
         ast::Expr::Int(expr) => Ok(Value::Int(expr.value)).map(Eval::Continue),
         ast::Expr::Bool(expr) => Ok(Value::Bool(expr.value)).map(Eval::Continue),
-        ast::Expr::Str(expr) => Ok(Value::Str(Rc::clone(&expr.value))).map(Eval::Continue),
+        ast::Expr::Str(expr) => Ok(Value::Str(expr.value_rc_str().clone())).map(Eval::Continue),
         ast::Expr::Ident(ident) => env
             .get(ident.sym())
             .cloned()

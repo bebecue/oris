@@ -107,8 +107,8 @@ pub(crate) struct Str {
     //
     // "foobar"
     // ^
-    pub(crate) pos: usize,
-    pub(crate) value: Rc<str>,
+    pos: usize,
+    value: Rc<str>,
 }
 
 #[derive(Debug)]
@@ -274,8 +274,11 @@ impl Expr {
 }
 
 impl Ident {
-    pub(crate) fn from_src(pos: usize, sym: Rc<str>) -> Self {
-        Self { pos, sym }
+    pub(crate) fn from_str(pos: usize, sym: &str) -> Self {
+        Self {
+            pos,
+            sym: sym.into(),
+        }
     }
 
     #[cfg(test)]
@@ -296,6 +299,23 @@ impl Ident {
 
     pub(crate) fn sym_rc_str(&self) -> &Rc<str> {
         &self.sym
+    }
+}
+
+impl Str {
+    pub(crate) fn from_src(pos: usize, value: &str) -> Self {
+        Self {
+            pos,
+            value: value.into(),
+        }
+    }
+
+    pub(crate) fn value(&self) -> &str {
+        &self.value
+    }
+
+    pub(crate) fn value_rc_str(&self) -> &Rc<str> {
+        &self.value
     }
 }
 

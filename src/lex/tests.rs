@@ -50,11 +50,11 @@ foo
             Kind::Return,
             Kind::If,
             Kind::Else,
-            Kind::Ident("foo".into()),
-            Kind::Int(0),
-            Kind::Int(1),
-            Kind::Int(42),
-            Kind::Str("bar".into()),
+            Kind::Ident,
+            Kind::Int,
+            Kind::Int,
+            Kind::Int,
+            Kind::Str,
             Kind::Comma,
             Kind::Colon,
             Kind::Semicolon,
@@ -86,9 +86,9 @@ fn stmts() {
         "let answer = 42;",
         vec![
             Kind::Let,
-            Kind::Ident("answer".into()),
+            Kind::Ident,
             Kind::Assign,
-            Kind::Int(42),
+            Kind::Int,
             Kind::Semicolon,
         ]
     );
@@ -97,7 +97,7 @@ fn stmts() {
         "let is = true;",
         vec![
             Kind::Let,
-            Kind::Ident("is".into()),
+            Kind::Ident,
             Kind::Assign,
             Kind::True,
             Kind::Semicolon
@@ -108,7 +108,7 @@ fn stmts() {
         "let not = false;",
         vec![
             Kind::Let,
-            Kind::Ident("not".into()),
+            Kind::Ident,
             Kind::Assign,
             Kind::False,
             Kind::Semicolon
@@ -119,15 +119,15 @@ fn stmts() {
         "let arith = 1 + 4 * 3 / 2;",
         vec![
             Kind::Let,
-            Kind::Ident("arith".into()),
+            Kind::Ident,
             Kind::Assign,
-            Kind::Int(1),
+            Kind::Int,
             Kind::Plus,
-            Kind::Int(4),
+            Kind::Int,
             Kind::Asterisk,
-            Kind::Int(3),
+            Kind::Int,
             Kind::Slash,
-            Kind::Int(2),
+            Kind::Int,
             Kind::Semicolon,
         ]
     );
@@ -136,25 +136,25 @@ fn stmts() {
         "let min = fn(x, y) { if x < y { x } else { y } };",
         vec![
             Kind::Let,
-            Kind::Ident("min".into()),
+            Kind::Ident,
             Kind::Assign,
             Kind::Fn,
             Kind::LeftParen,
-            Kind::Ident("x".into()),
+            Kind::Ident,
             Kind::Comma,
-            Kind::Ident("y".into()),
+            Kind::Ident,
             Kind::RightParen,
             Kind::LeftBrace,
             Kind::If,
-            Kind::Ident("x".into()),
+            Kind::Ident,
             Kind::Lt,
-            Kind::Ident("y".into()),
+            Kind::Ident,
             Kind::LeftBrace,
-            Kind::Ident("x".into()),
+            Kind::Ident,
             Kind::RightBrace,
             Kind::Else,
             Kind::LeftBrace,
-            Kind::Ident("y".into()),
+            Kind::Ident,
             Kind::RightBrace,
             Kind::RightBrace,
             Kind::Semicolon,
@@ -165,12 +165,12 @@ fn stmts() {
         r#"let seq = [true, "==", !false];"#,
         vec![
             Kind::Let,
-            Kind::Ident("seq".into()),
+            Kind::Ident,
             Kind::Assign,
             Kind::LeftBracket,
             Kind::True,
             Kind::Comma,
-            Kind::Str("==".into()),
+            Kind::Str,
             Kind::Comma,
             Kind::Bang,
             Kind::False,
@@ -183,22 +183,22 @@ fn stmts() {
         r#"let map = {"not true": false, 2: "two", false: 4, "seq": []};"#,
         vec![
             Kind::Let,
-            Kind::Ident("map".into()),
+            Kind::Ident,
             Kind::Assign,
             Kind::LeftBrace,
-            Kind::Str("not true".into()),
+            Kind::Str,
             Kind::Colon,
             Kind::False,
             Kind::Comma,
-            Kind::Int(2),
+            Kind::Int,
             Kind::Colon,
-            Kind::Str("two".into()),
+            Kind::Str,
             Kind::Comma,
             Kind::False,
             Kind::Colon,
-            Kind::Int(4),
+            Kind::Int,
             Kind::Comma,
-            Kind::Str("seq".into()),
+            Kind::Str,
             Kind::Colon,
             Kind::LeftBracket,
             Kind::RightBracket,
@@ -219,7 +219,7 @@ macro_rules! t_err {
 fn errors() {
     t_err!("\"abc", error::Kind::Quote);
     t_err!("123456789123456789", error::Kind::Overflow);
-    t_err!("12g", error::Kind::BadDigit(b'g'));
-    t_err!("0x", error::Kind::BadDigit(b'x'));
-    t_err!("$", error::Kind::Unexpected(b'$'));
+    t_err!("12g", error::Kind::BadDigit);
+    t_err!("0x", error::Kind::BadDigit);
+    t_err!("$", error::Kind::Unexpected);
 }

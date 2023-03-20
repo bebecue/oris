@@ -3,22 +3,19 @@ use crate::lex;
 #[derive(Debug)]
 pub(crate) enum Error {
     Lex(lex::Error),
-    Incomplete(Box<Expected>),
-    Mismatch(Box<Mismatch>),
+    Incomplete(Expected),
+    Mismatch(Mismatch),
 }
 
 #[derive(Debug)]
-#[cfg_attr(test, derive(PartialEq, Eq))]
 pub(crate) struct Mismatch {
     pub(crate) left: lex::token::Token,
     pub(crate) right: Expected,
 }
 
 #[derive(Debug)]
-#[cfg_attr(test, derive(PartialEq, Eq))]
 pub(crate) enum Expected {
     Expr,
-    Ident,
     Token(lex::token::Kind),
 }
 
@@ -57,7 +54,6 @@ impl std::fmt::Display for Expected {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Expr => f.write_str("expression"),
-            Self::Ident => f.write_str("identifier"),
             Self::Token(token) => write!(f, "{:?}", token),
         }
     }
