@@ -6,5 +6,6 @@
 !/tests
 !/Cargo.toml
 !/README.md
+!/rustfmt.toml
 
 !/benches_oris
