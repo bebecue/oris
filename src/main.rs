@@ -19,7 +19,7 @@ fn run(file: &str) {
 
     match oris::entry(&mut env, &code) {
         Ok(result) => {
-            if let Some(result) = result {
+            if !result.is_unit() {
                 println!("{:?}", result);
             }
         }
@@ -50,9 +50,7 @@ fn repl() {
 
         match oris::entry(&mut env, line.as_bytes()) {
             Ok(result) => {
-                if let Some(result) = result {
-                    println!("{:?}", result);
-                }
+                println!("{:?}", result);
             }
             Err(err) => {
                 eprintln!("error: {}", err);
