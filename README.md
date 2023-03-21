@@ -1,3 +1,6 @@
+[![crates.io](https://img.shields.io/crates/v/oris.svg)](https://crates.io/crates/oris)
+[![documentation](https://docs.rs/oris/badge.svg)](https://docs.rs/oris)
+
 # `oris`
 
 An interpreter for [Monkey](https://monkeylang.org/)
