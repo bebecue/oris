@@ -8,4 +8,4 @@ mod eval;
 mod lex;
 mod parse;
 
-pub use embed::{entry, Env, Error, Result, Value};
+pub use embed::{entry, Env, EnvBuilder, Error, Result, Value};

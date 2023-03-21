@@ -5,18 +5,65 @@ use crate::eval;
 pub type Result = std::result::Result<Value, Error>;
 
 pub fn entry(env: &mut Env, code: &[u8]) -> Result {
-    let value = eval::entry(&mut env.inner, code)?;
+    let value = eval::entry(&mut env.env, code)?;
     Ok(Value { value })
 }
 
 pub struct Env {
-    inner: eval::Env,
+    env: eval::Env,
 }
 
 impl Env {
     pub fn new() -> Self {
+        EnvBuilder::new().with_builtin().build()
+    }
+
+    pub fn builder() -> EnvBuilder {
+        EnvBuilder::new()
+    }
+}
+
+pub struct EnvBuilder {
+    global: eval::env::Storage,
+}
+
+impl EnvBuilder {
+    fn new() -> Self {
         Self {
-            inner: eval::Env::with_builtin(),
+            global: eval::env::Storage::default(),
+        }
+    }
+
+    pub fn with_bool(self, name: &str, value: bool) -> Self {
+        self.with_value(name, eval::Value::Bool(value))
+    }
+
+    pub fn with_int(self, name: &str, value: i32) -> Self {
+        self.with_value(name, eval::Value::Int(value))
+    }
+
+    pub fn with_str(self, name: &str, value: &str) -> Self {
+        self.with_value(name, eval::Value::Str(value.into()))
+    }
+
+    fn with_value(mut self, name: &str, value: eval::Value) -> Self {
+        let pos = None;
+        self.global.insert(std::rc::Rc::from(name), (pos, value));
+        self
+    }
+
+    pub fn with_builtin(mut self) -> Self {
+        for (k, v) in eval::value::builtin::all_() {
+            self.global
+                .insert(std::rc::Rc::from(k), (None, eval::Value::Builtin(v)));
+        }
+
+        self
+    }
+
+    pub fn build(self) -> Env {
+        Env {
+            env: eval::Env::new(self.global),
         }
     }
 }

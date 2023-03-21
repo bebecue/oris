@@ -31,20 +31,46 @@ $ oris dt.oris
 ## Embedded
 
 ```rust
-let mut env = oris::Env::new();
-
 let code = b"
-let fib = fn(n) {
-    if n < 2 {
-        1
-    } else {
-        fib(n - 1) + fib(n - 2)
+let is_composite = fn(n) {
+    let f = fn(d) {
+        if n <= d {
+            false
+        } else {
+            let q = n / d;
+            if q * d == n {
+                true
+            } else {
+                f(d + 1)
+            }
+        }
     }
-};
 
-fib(10)
+    f(2)
+}
+
+let sum = fn(m) {
+    let f = fn(n) {
+        if n == m {
+            0
+        } else {
+            if is_composite(n) {
+                0
+            } else {
+                n
+            } + f(n + 1)
+        }
+    };
+
+    f(1)
+}
+
+sum(limit)
 ";
 
-let value = oris::entry(&mut env, code).unwrap();
-assert_eq!(value.as_int().unwrap(), 89);
+let mut env = oris::Env::builder().with_int("limit", 14).build();
+
+let result = oris::entry(&mut env, code).unwrap();
+
+assert_eq!(result.as_int().unwrap(), 42);
 ```

@@ -1,7 +1,8 @@
+pub(crate) mod env;
+pub(crate) mod value;
+
 mod binary;
-mod env;
 mod error;
-mod value;
 
 #[cfg(test)]
 mod tests;

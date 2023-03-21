@@ -6,16 +6,10 @@ pub(crate) struct Env {
     cached: Vec<Storage>,
 }
 
-type Storage = std::collections::HashMap<std::rc::Rc<str>, (Option<usize>, Value)>;
+pub(crate) type Storage = std::collections::HashMap<std::rc::Rc<str>, (Option<usize>, Value)>;
 
 impl Env {
-    pub(crate) fn with_builtin() -> Self {
-        let mut global = Storage::default();
-
-        for (k, v) in crate::eval::value::builtin::all_() {
-            global.insert(std::rc::Rc::from(k), (None, Value::Builtin(v)));
-        }
-
+    pub(crate) fn new(global: Storage) -> Self {
         Self {
             global,
             scopes: Default::default(),

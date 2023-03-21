@@ -1,4 +1,4 @@
-pub(super) mod builtin;
+pub(crate) mod builtin;
 mod closure;
 
 use std::{collections::HashMap, fmt, rc::Rc};

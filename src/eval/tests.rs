@@ -1,8 +1,18 @@
 use super::*;
 
+fn test_env() -> Env {
+    let mut global = env::Storage::default();
+
+    for (k, v) in value::builtin::all_() {
+        global.insert(std::rc::Rc::from(k), (None, Value::Builtin(v)));
+    }
+
+    Env::new(global)
+}
+
 macro_rules! t {
     ($code:literal, $result:literal) => {
-        let mut env = Env::with_builtin();
+        let mut env = test_env();
 
         match entry(&mut env, $code.as_bytes()) {
             Ok(Value::Int(result)) => {
@@ -18,7 +28,7 @@ macro_rules! t {
     };
 
     ($code:literal, [$($elem:literal),*]) => {
-        let mut env = Env::with_builtin();
+        let mut env = test_env();
 
         match entry(&mut env, $code.as_bytes()) {
             Ok(Value::Seq(result)) => {
@@ -44,7 +54,7 @@ macro_rules! t {
     };
 
     (error: $code:literal) => {
-        let mut env = Env::with_builtin();
+        let mut env = test_env();
 
         match entry(&mut env, $code.as_bytes()) {
             result @ Ok(_) | result @ Err(Error::Parse(_)) => panic!("{:?}", result),
@@ -53,7 +63,7 @@ macro_rules! t {
     };
 
     (unit: $code:literal) => {
-        let mut env = Env::with_builtin();
+        let mut env = test_env();
 
         match entry(&mut env, $code.as_bytes()) {
             Ok(Value::Unit) => {},
@@ -62,7 +72,7 @@ macro_rules! t {
     };
 
     (str: $code:literal, $result:literal) => {
-        let mut env = Env::with_builtin();
+        let mut env = test_env();
 
         match entry(&mut env, $code.as_bytes()) {
             Ok(Value::Str(s)) => assert_eq!(&*s, $result),
