@@ -2,7 +2,7 @@ use crate::{eval::Value, parse::ast::Ident};
 
 pub(crate) struct Env {
     global: Storage,
-    scopes: Vec<Storage>,
+    frames: Vec<Storage>,
     cached: Vec<Storage>,
 }
 
@@ -12,21 +12,21 @@ impl Env {
     pub(crate) fn new(global: Storage) -> Self {
         Self {
             global,
-            scopes: Default::default(),
+            frames: Default::default(),
             cached: Default::default(),
         }
     }
 
     pub(super) fn get(&self, sym: &str) -> Option<&Value> {
-        self.scopes
+        self.frames
             .last()
-            .and_then(|scope| scope.get(sym))
+            .and_then(|frame| frame.get(sym))
             .or_else(|| self.global.get(sym)) // FIXME: filter out values in global but defined after the closure?
             .map(|(_, value)| value)
     }
 
     pub(super) fn set(&mut self, ident: Ident, value: Value) {
-        self.scopes
+        self.frames
             .last_mut()
             .unwrap_or(&mut self.global)
             .insert(ident.sym_rc_str().clone(), (Some(ident.pos()), value));
@@ -37,11 +37,11 @@ impl Env {
         F: FnOnce(&mut Env) -> T,
     {
         let new = self.cached.pop().unwrap_or_default();
-        self.scopes.push(new);
+        self.frames.push(new);
 
         let result = f(self);
 
-        let mut old = self.scopes.pop().unwrap();
+        let mut old = self.frames.pop().unwrap();
         old.clear();
         self.cached.push(old);
 
