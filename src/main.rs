@@ -25,7 +25,7 @@ fn run(file: &str) {
         }
         Err(err) => {
             let (line, column) = err.line_column(&code);
-            eprintln!("[error] {}\n  at {}:{}:{}", err, file, line + 1, column + 1);
+            eprintln!("[error] {}:{}:{}: {}", file, line + 1, column + 1, err);
             std::process::exit(1);
         }
     }

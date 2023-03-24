@@ -1,2 +1,3 @@
 2:5
-undefined identifier: x
+undefined identifier: oo
+    note: a similar identifier exists: foo

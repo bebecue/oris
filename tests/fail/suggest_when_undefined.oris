@@ -1,0 +1,3 @@
+let beef = 6;
+let eat = fn(food) {};
+eat(bee);

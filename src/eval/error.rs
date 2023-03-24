@@ -8,7 +8,7 @@ pub(crate) enum Error {
         right: Value,
     },
     Parse(crate::parse::Error),
-    Undefined(ast::Ident),
+    Undefined(ast::Ident, Option<std::rc::Rc<str>>),
     Index {
         pos: usize,
         base: Value,
@@ -51,7 +51,7 @@ impl Error {
         match self {
             Self::AssertEq { pos, .. } => *pos,
             Self::Parse(error) => error.pos(),
-            Self::Undefined(ident) => ident.pos(),
+            Self::Undefined(ident, _) => ident.pos(),
             Self::Index { pos, .. } => *pos,
             Self::Unary { pos, .. } => *pos,
             Self::Binary { pos, .. } => *pos,
@@ -82,8 +82,16 @@ impl std::fmt::Display for Error {
                 write!(f, "right: {:?}", right)?;
                 Ok(())
             }
-            Self::Undefined(ident) => {
-                write!(f, "undefined identifier: {}", ident)
+            Self::Undefined(ident, similar_ident) => {
+                write!(f, "undefined identifier: {}", ident)?;
+                if let Some(similar_ident) = similar_ident {
+                    write!(
+                        f,
+                        "\n    note: a similar identifier exists: {}",
+                        similar_ident
+                    )?;
+                }
+                Ok(())
             }
             Self::Index {
                 pos: _,

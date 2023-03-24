@@ -89,7 +89,9 @@ fn eval_expr(env: &mut Env, expr: &ast::Expr) -> Result<Eval> {
         ast::Expr::Ident(ident) => env
             .get(ident.sym())
             .cloned()
-            .ok_or_else(|| Error::Undefined(ident.clone()))
+            .ok_or_else(|| {
+                Error::Undefined(ident.clone(), env.find_similar_symbol(ident.sym()).cloned())
+            })
             .map(Eval::Continue),
         ast::Expr::Seq(seq) => {
             let mut elements = Vec::with_capacity(seq.elements.len());
