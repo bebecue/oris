@@ -223,15 +223,15 @@ fn eval_block(env: &mut Env, block: &ast::Block) -> Result<Eval> {
 }
 
 fn eval_if(env: &mut Env, expr: &ast::If) -> Result<Eval> {
-    let condition = propagate!(eval_expr(env, &expr.condition));
-
-    if let Value::Bool(true) = condition {
-        eval_block(env, &expr.consequence)
-    } else {
-        match expr.alternative {
-            Some(ref expr) => eval_block(env, expr),
-            None => Ok(Value::Unit).map(Eval::Continue),
+    for (condition, consequence) in expr.conditioned.iter() {
+        if let Value::Bool(true) = propagate!(eval_expr(env, condition)) {
+            return eval_block(env, consequence);
         }
+    }
+
+    match expr.alternative {
+        Some(ref expr) => eval_block(env, expr),
+        None => Ok(Value::Unit).map(Eval::Continue),
     }
 }
 

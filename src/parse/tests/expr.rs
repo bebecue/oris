@@ -139,3 +139,28 @@ fn precedence() {
         binary(binary(int(1), BinaryOp::Add, int(2)), BinaryOp::Mul, int(3),)
     );
 }
+
+#[test]
+fn if_() {
+    t!(
+        "if a { 1 } else { 2 }",
+        Expr::If(Box::new(If {
+            pos: 0,
+            conditioned: [(ident("a"), block(vec![int(1)]))].into(),
+            alternative: Some(block(vec![int(2)]))
+        }))
+    );
+    t!(
+        "if a { 1 } else if b { 2 } else if c { 3 } else { 4 }",
+        Expr::If(Box::new(If {
+            pos: 0,
+            conditioned: [
+                (ident("a"), block(vec![int(1)])),
+                (ident("b"), block(vec![int(2)])),
+                (ident("c"), block(vec![int(3)])),
+            ]
+            .into(),
+            alternative: Some(block(vec![int(4)]))
+        }))
+    );
+}

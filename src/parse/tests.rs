@@ -120,13 +120,18 @@ fn pic_eq_expr(left: &Expr, right: &Expr) -> bool {
                 && pic_eq_slice(&left.args, &right.args, pic_eq_expr)
         }
         (Expr::If(left), Expr::If(right)) => {
-            pic_eq_expr(&left.condition, &right.condition)
-                && pic_eq_block(&left.consequence, &right.consequence)
-                && pic_eq_opt(
-                    left.alternative.as_ref(),
-                    right.alternative.as_ref(),
-                    pic_eq_block,
-                )
+            pic_eq_slice(
+                &left.conditioned,
+                &right.conditioned,
+                |(left_condition, left_consequence), (right_condition, right_consequence)| {
+                    pic_eq_expr(left_condition, right_condition)
+                        && pic_eq_block(left_consequence, right_consequence)
+                },
+            ) && pic_eq_opt(
+                left.alternative.as_ref(),
+                right.alternative.as_ref(),
+                pic_eq_block,
+            )
         }
         _ => false,
     }

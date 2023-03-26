@@ -125,8 +125,10 @@ impl<'a> AnalyzeEnv<'a> {
                 self.walk_expr(&expr.right);
             }
             ast::Expr::If(expr) => {
-                self.walk_expr(&expr.condition);
-                self.walk_block(&expr.consequence);
+                for (condition, consequence) in expr.conditioned.iter() {
+                    self.walk_expr(condition);
+                    self.walk_block(consequence);
+                }
                 if let Some(ref alternative) = expr.alternative {
                     self.walk_block(alternative);
                 }

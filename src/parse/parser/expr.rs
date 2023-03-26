@@ -276,23 +276,32 @@ impl<'a> Parser<'a> {
 
     // with token `if` skipped
     fn parse_if_expr(&mut self, pos: usize) -> parse::Result<ast::If> {
-        let condition = self.parse_expr()?;
+        let mut conditioned = Vec::new();
 
-        let consequence = self.parse_block()?;
+        let alternative = loop {
+            let condition = self.parse_expr()?;
+            let consequence = self.parse_block()?;
+            conditioned.push((condition, consequence));
 
-        let alternative = match self.lexer.peek() {
-            Some(Ok(tk)) if tk.kind == token::Kind::Else => {
-                let _ = self.lexer.next();
+            match self.lexer.peek() {
+                Some(Ok(tk)) if tk.kind == token::Kind::Else => {
+                    let _else = self.lexer.next();
 
-                Some(self.parse_block()?)
+                    if matches!(self.lexer.peek(), Some(Ok(tk)) if tk.kind == token::Kind::If) {
+                        let _if = self.lexer.next();
+
+                        // jump to start and parse condition & consequence again
+                    } else {
+                        break self.parse_block().map(Some)?;
+                    }
+                }
+                _ => break None,
             }
-            _ => None,
         };
 
         Ok(ast::If {
             pos,
-            condition,
-            consequence,
+            conditioned: conditioned.into_boxed_slice(),
             alternative,
         })
     }

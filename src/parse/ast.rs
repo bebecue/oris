@@ -248,9 +248,7 @@ pub(crate) struct If {
     // if <expr> { ... }
     // ^
     pub(crate) pos: usize,
-
-    pub(crate) condition: Expr,
-    pub(crate) consequence: Block,
+    pub(crate) conditioned: Box<[(Expr, Block)]>,
     pub(crate) alternative: Option<Block>,
 }
 
